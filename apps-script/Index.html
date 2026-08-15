@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <?!= include('Css'); ?>
+</head>
+<body>
+
+  <!-- Màn hình chờ -->
+  <div id="splash" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:linear-gradient(160deg,#6f4e37,#3b2a1e);color:#fff">
+    <div style="font-size:54px">&#9749;</div>
+    <div style="font-weight:700;font-size:18px"><?= tenQuan ?></div>
+    <div class="spin"></div>
+  </div>
+
+  <!-- Đăng nhập -->
+  <div id="loginScreen" class="hidden">
+    <div class="lg-logo">
+      <div class="ic">&#9749;</div>
+      <h1 id="lgTenQuan"><?= tenQuan ?></h1>
+      <p>Hệ thống chấm công &amp; quản lý nhân sự</p>
+    </div>
+    <div class="lg-box">
+      <div id="lgErr" class="lg-err hidden"></div>
+      <label class="f">
+        <span>Mã nhân viên</span>
+        <input id="lgMa" class="inp" type="text" autocomplete="username"
+               autocapitalize="characters" placeholder="VD: NV001">
+      </label>
+      <label class="f">
+        <span>Mã PIN</span>
+        <input id="lgPin" class="inp" type="password" inputmode="numeric"
+               autocomplete="current-password" placeholder="••••" maxlength="10">
+      </label>
+      <button id="lgBtn" class="btn block">Đăng nhập</button>
+      <p class="xs muted center mt" style="margin-bottom:0">
+        Quên PIN? Nhờ quản lý reset giúp bạn.
+      </p>
+    </div>
+  </div>
+
+  <!-- Ứng dụng chính -->
+  <div id="app" class="hidden">
+    <header id="topbar">
+      <div class="tb-avatar" id="tbAv">?</div>
+      <div class="grow">
+        <div class="tb-name" id="tbName">—</div>
+        <div class="tb-sub" id="tbSub">—</div>
+      </div>
+      <div class="tb-right">
+        <button class="tb-btn" id="tbReload" title="Tải lại">&#8635;</button>
+        <button class="tb-btn" id="tbLogout">Thoát</button>
+      </div>
+    </header>
+    <main id="view"></main>
+    <nav id="tabbar"></nav>
+  </div>
+
+  <div id="toast"></div>
+  <div id="loading" class="hidden"><div class="spin"></div></div>
+  <div id="modal" class="hidden"></div>
+
+  <?!= include('JsCore'); ?>
+  <?!= include('JsNhanVien'); ?>
+  <?!= include('JsQuanLy'); ?>
+</body>
+</html>

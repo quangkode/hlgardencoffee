@@ -1,0 +1,403 @@
+<script>
+/*******************************************************
+ * JsCore — trạng thái, gọi API, UI dùng chung, định tuyến
+ *******************************************************/
+
+var S = {
+  token: null,
+  me: null,
+  cfg: {},
+  tab: null,
+  lechGio: 0,      // serverTime - clientTime (ms)
+  cache: {}
+};
+
+var VIEWS = {};     // id tab -> hàm render, đăng ký bởi JsNhanVien / JsQuanLy
+var KEY_TOKEN = 'ccqcf_token';
+
+/* ============ Tiện ích DOM ============ */
+function $(sel, root){ return (root||document).querySelector(sel); }
+function $$(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+function h(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function show(el){ (typeof el==='string'?$(el):el).classList.remove('hidden'); }
+function hide(el){ (typeof el==='string'?$(el):el).classList.add('hidden'); }
+
+/* ============ Gọi API ============ */
+var _dangTai = 0;
+function tai(on){
+  _dangTai += on ? 1 : -1;
+  if (_dangTai < 0) _dangTai = 0;
+  if (_dangTai > 0) show('#loading'); else hide('#loading');
+}
+
+function api(action, payload, opts){
+  opts = opts || {};
+  if (!opts.im) tai(true);
+  return new Promise(function(res, rej){
+    google.script.run
+      .withSuccessHandler(function(r){
+        if (!opts.im) tai(false);
+        if (!r){ rej(new Error('Không nhận được phản hồi từ máy chủ.')); return; }
+        if (r.ok){ res(r.data); return; }
+        var e = String(r.error || 'Lỗi không xác định');
+        if (e.indexOf('AUTH:') === 0){ dangXuat(e.replace('AUTH:','').trim()); }
+        if (e.indexOf('FIRST_LOGIN:') === 0){ manDoiPin(true); }
+        rej(new Error(e.replace(/^(AUTH|FIRST_LOGIN):\s*/, '')));
+      })
+      .withFailureHandler(function(err){
+        if (!opts.im) tai(false);
+        rej(new Error((err && err.message) ? err.message : 'Mất kết nối. Kiểm tra mạng rồi thử lại.'));
+      })
+      .api(S.token, action, payload || {});
+  });
+}
+
+/** Gọi API và tự báo lỗi ra toast. Trả null nếu lỗi. */
+function apiAn(action, payload, opts){
+  return api(action, payload, opts).catch(function(e){ toast(e.message, 'err'); return null; });
+}
+
+/* ============ Toast ============ */
+function toast(msg, loai, ms){
+  var d = document.createElement('div');
+  d.className = 'toast ' + (loai || '');
+  d.textContent = msg;
+  $('#toast').appendChild(d);
+  setTimeout(function(){
+    d.style.transition = 'opacity .3s'; d.style.opacity = '0';
+    setTimeout(function(){ d.remove(); }, 320);
+  }, ms || (String(msg).length > 70 ? 5200 : 3200));
+}
+
+/* ============ Bottom sheet / modal ============ */
+var _sheetSau = null;
+function moSheet(o){
+  var m = $('#modal');
+  m.innerHTML =
+    '<div class="sheet" id="_sheet">' +
+      '<h3>' + h(o.title || '') + '<button class="close" id="_shClose">&times;</button></h3>' +
+      '<div id="_shBody">' + (o.body || '') + '</div>' +
+    '</div>';
+  show(m);
+  $('#_shClose').onclick = dongSheet;
+  m.onclick = function(e){ if (e.target === m) dongSheet(); };
+  _sheetSau = o.onClose || null;
+  if (o.onMount) o.onMount($('#_shBody'));
+  return $('#_shBody');
+}
+function dongSheet(){
+  hide('#modal'); $('#modal').innerHTML = '';
+  if (_sheetSau){ var f = _sheetSau; _sheetSau = null; f(); }
+}
+
+function xacNhan(msg, o){
+  o = o || {};
+  return new Promise(function(res){
+    // dongSheet() luôn gọi onClose -> chỉ chốt kết quả ở đúng một chỗ để tránh
+    // Promise bị resolve hai lần (lần đầu thắng, đồng ý sẽ hoá thành huỷ).
+    var traLoi = false;
+    moSheet({
+      title: o.title || 'Xác nhận',
+      body: '<p style="white-space:pre-line;margin:0 0 16px">' + h(msg) + '</p>' +
+            '<div class="row"><button class="btn ghost grow" id="_cNo">Huỷ</button>' +
+            '<button class="btn grow ' + (o.nguyHiem ? 'err' : '') + '" id="_cYes">' +
+            h(o.ok || 'Đồng ý') + '</button></div>',
+      onMount: function(){
+        $('#_cNo').onclick = function(){ traLoi = false; dongSheet(); };
+        $('#_cYes').onclick = function(){ traLoi = true; dongSheet(); };
+      },
+      onClose: function(){ res(traLoi === true); }
+    });
+  });
+}
+
+/* ============ Form builder ============ */
+function fField(f){
+  var id = 'f_' + f.k;
+  var v = (f.value === undefined || f.value === null) ? '' : f.value;
+  var attrs = 'id="' + id + '" data-k="' + h(f.k) + '" class="inp"' + (f.attrs ? ' ' + f.attrs : '');
+  var inner;
+  if (f.type === 'select'){
+    inner = '<select ' + attrs + '>' + (f.options || []).map(function(o){
+      var val = (o.v !== undefined ? o.v : o), lab = (o.t !== undefined ? o.t : o);
+      return '<option value="' + h(val) + '"' + (String(val) === String(v) ? ' selected' : '') + '>' + h(lab) + '</option>';
+    }).join('') + '</select>';
+  } else if (f.type === 'textarea'){
+    inner = '<textarea ' + attrs + ' placeholder="' + h(f.ph || '') + '">' + h(v) + '</textarea>';
+  } else if (f.type === 'checkbox'){
+    return '<label class="f row" style="gap:8px;align-items:center">' +
+           '<input type="checkbox" id="' + id + '" data-k="' + h(f.k) + '" data-type="checkbox"' +
+           (String(v) === 'true' || v === true ? ' checked' : '') + ' style="width:20px;height:20px">' +
+           '<span style="margin:0;font-size:14px;color:var(--tx)">' + h(f.label) + '</span></label>' +
+           (f.hint ? '<div class="xs muted" style="margin:-6px 0 10px 28px">' + h(f.hint) + '</div>' : '');
+  } else {
+    inner = '<input type="' + (f.type || 'text') + '" ' + attrs +
+            ' value="' + h(v) + '" placeholder="' + h(f.ph || '') + '"' +
+            (f.type === 'number' ? ' inputmode="decimal"' : '') + '>';
+  }
+  return '<label class="f"><span>' + h(f.label) + '</span>' + inner + '</label>' +
+         (f.hint ? '<div class="xs muted" style="margin:-6px 0 10px">' + h(f.hint) + '</div>' : '');
+}
+function fForm(fields){ return fields.filter(Boolean).map(fField).join(''); }
+function fRead(root){
+  var o = {};
+  $$('[data-k]', root).forEach(function(el){
+    o[el.getAttribute('data-k')] = (el.getAttribute('data-type') === 'checkbox' || el.type === 'checkbox')
+      ? (el.checked ? 'TRUE' : 'FALSE') : el.value;
+  });
+  return o;
+}
+
+/* ============ Định dạng ============ */
+function tien(n){
+  n = Math.round(Number(n) || 0);
+  var am = n < 0; n = Math.abs(n);
+  return (am ? '-' : '') + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + 'đ';
+}
+function soPhutRaGio(p){
+  p = Math.round(Number(p) || 0);
+  var g = Math.floor(p / 60), m = p % 60;
+  if (!g) return m + ' phút';
+  return g + 'h' + (m ? (m < 10 ? '0' : '') + m : '');
+}
+function ngayVN(s){
+  s = String(s || ''); if (s.length < 10) return s;
+  return s.slice(8,10) + '/' + s.slice(5,7) + '/' + s.slice(0,4);
+}
+function ngayNgan(s){
+  s = String(s || ''); if (s.length < 10) return s;
+  return s.slice(8,10) + '/' + s.slice(5,7);
+}
+var THU = ['CN','T2','T3','T4','T5','T6','T7'];
+function thuCua(s){
+  var d = new Date(s + 'T00:00:00');
+  return isNaN(d) ? '' : THU[d.getDay()];
+}
+function thangVN(s){
+  s = String(s || ''); if (s.length < 7) return s;
+  return 'Tháng ' + Number(s.slice(5,7)) + '/' + s.slice(0,4);
+}
+function batDauHoa(s){ return String(s||'').trim(); }
+function chuCai(s){
+  s = String(s || '?').trim();
+  var w = s.split(/\s+/);
+  return ((w[w.length-1] || '?')[0] || '?').toUpperCase();
+}
+function homNay(){ return dateISO(new Date(Date.now() + S.lechGio)); }
+function dateISO(d){
+  return d.getFullYear() + '-' + ('0'+(d.getMonth()+1)).slice(-2) + '-' + ('0'+d.getDate()).slice(-2);
+}
+function thangISO(d){ return dateISO(d).slice(0,7); }
+function congNgay(iso, n){
+  var d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return dateISO(d);
+}
+function gioServer(){
+  var d = new Date(Date.now() + S.lechGio);
+  return ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2) + ':' + ('0'+d.getSeconds()).slice(-2);
+}
+function datLechGio(serverStamp){
+  var m = String(serverStamp || '').match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+  if (!m) return;
+  var sv = new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6]).getTime();
+  S.lechGio = sv - Date.now();
+}
+function trong(ic, txt){
+  return '<div class="empty"><div class="ic">' + ic + '</div><div>' + h(txt) + '</div></div>';
+}
+
+/* ============ Vị trí & ảnh ============ */
+function layViTri(ms){
+  return new Promise(function(res){
+    if (!navigator.geolocation) return res(null);
+    var xong = false;
+    var t = setTimeout(function(){ if(!xong){ xong = true; res(null); } }, (ms || 12000) + 500);
+    navigator.geolocation.getCurrentPosition(
+      function(p){ if(xong) return; xong = true; clearTimeout(t);
+        res({ lat: p.coords.latitude, lng: p.coords.longitude, acc: Math.round(p.coords.accuracy) }); },
+      function(){ if(xong) return; xong = true; clearTimeout(t); res(null); },
+      { enableHighAccuracy: true, timeout: ms || 12000, maximumAge: 0 }
+    );
+  });
+}
+
+function chupAnh(){
+  return new Promise(function(res){
+    var inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*'; inp.capture = 'user';
+    inp.onchange = function(){
+      var f = inp.files && inp.files[0];
+      if (!f) return res(null);
+      var fr = new FileReader();
+      fr.onload = function(){
+        var img = new Image();
+        img.onload = function(){
+          var max = 640, w = img.width, hh = img.height;
+          if (w > hh && w > max){ hh = Math.round(hh * max / w); w = max; }
+          else if (hh > max){ w = Math.round(w * max / hh); hh = max; }
+          var c = document.createElement('canvas'); c.width = w; c.height = hh;
+          c.getContext('2d').drawImage(img, 0, 0, w, hh);
+          res(c.toDataURL('image/jpeg', 0.6));
+        };
+        img.onerror = function(){ res(null); };
+        img.src = fr.result;
+      };
+      fr.onerror = function(){ res(null); };
+      fr.readAsDataURL(f);
+    };
+    inp.click();
+  });
+}
+
+/* ============ Đăng nhập / đăng xuất ============ */
+function loiDangNhap(msg){
+  var e = $('#lgErr');
+  if (!msg){ hide(e); return; }
+  e.textContent = msg; show(e);
+}
+
+function dangNhap(){
+  var ma = $('#lgMa').value.trim().toUpperCase();
+  var pin = $('#lgPin').value.trim();
+  if (!ma || !pin){ loiDangNhap('Nhập đủ mã nhân viên và PIN.'); return; }
+  loiDangNhap('');
+  $('#lgBtn').disabled = true;
+  api('login', { maNV: ma, pin: pin })
+    .then(function(d){
+      S.token = d.token; S.me = d.me; S.cfg = d.cauHinh || {};
+      try { localStorage.setItem(KEY_TOKEN, d.token); } catch(e){}
+      datLechGio(S.cfg.serverTime);
+      $('#lgPin').value = '';
+      vaoApp();
+    })
+    .catch(function(e){ loiDangNhap(e.message); })
+    .then(function(){ $('#lgBtn').disabled = false; });
+}
+
+function dangXuat(msg){
+  S.token = null; S.me = null; S.cache = {};
+  try { localStorage.removeItem(KEY_TOKEN); } catch(e){}
+  if (_pollTimer){ clearInterval(_pollTimer); _pollTimer = null; }
+  hide('#modal'); $('#modal').innerHTML = '';
+  hide('#app'); show('#loginScreen'); hide('#splash');
+  loiDangNhap(msg || '');
+}
+
+/* ============ Đổi PIN ============ */
+function manDoiPin(batBuoc){
+  moSheet({
+    title: batBuoc ? '🔐 Đổi PIN lần đầu' : '🔐 Đổi mã PIN',
+    body: (batBuoc ? '<p class="small muted" style="margin-top:0">Vì lý do bảo mật, bạn phải đổi PIN mặc định trước khi dùng app.</p>' : '') +
+      fForm([
+        { k:'pinCu', label:'PIN hiện tại', type:'password', attrs:'inputmode="numeric" maxlength="10"' },
+        { k:'pinMoi', label:'PIN mới (4–10 chữ số)', type:'password', attrs:'inputmode="numeric" maxlength="10"' },
+        { k:'pinMoiNhapLai', label:'Nhập lại PIN mới', type:'password', attrs:'inputmode="numeric" maxlength="10"' }
+      ]) +
+      '<button class="btn block" id="_dpOk">Đổi PIN</button>',
+    onMount: function(root){
+      $('#_dpOk').onclick = function(){
+        var d = fRead(root);
+        api('doiPin', d).then(function(r){
+          S.token = r.token; S.me = r.me;
+          try { localStorage.setItem(KEY_TOKEN, r.token); } catch(e){}
+          dongSheet(); toast('Đã đổi PIN thành công.', 'ok');
+          if (batBuoc) vaoApp();
+        }).catch(function(e){ toast(e.message, 'err'); });
+      };
+    },
+    onClose: function(){ if (batBuoc && S.me && S.me.doiPinLanDau) manDoiPin(true); }
+  });
+}
+
+/* ============ Thanh tab & định tuyến ============ */
+var TAB_NV = [
+  { id:'cc',    ic:'&#128337;', label:'Chấm công' },
+  { id:'ca',    ic:'&#128197;', label:'Ca của tôi' },
+  { id:'kho',   ic:'&#128230;', label:'Kiểm kho' },
+  { id:'gc',    ic:'&#128179;', label:'Giao ca' },
+  { id:'toi',   ic:'&#128100;', label:'Của tôi' }
+];
+var TAB_QL = [
+  { id:'q_home', ic:'&#128202;', label:'Tổng quan' },
+  { id:'q_cc',   ic:'&#128337;', label:'Chấm công' },
+  { id:'q_luong',ic:'&#128176;', label:'Lương' },
+  { id:'q_kho',  ic:'&#128230;', label:'Kho' },
+  { id:'q_them', ic:'&#9776;',   label:'Thêm' }
+];
+function dsTab(){ return (S.me && S.me.chucVu === 'QuanLy') ? TAB_QL : TAB_NV; }
+
+function veTabbar(){
+  var tabs = dsTab();
+  $('#tabbar').innerHTML = tabs.map(function(t){
+    return '<button data-tab="' + t.id + '" class="' + (t.id === S.tab ? 'on' : '') + '">' +
+           '<span class="ic">' + t.ic + '</span><span>' + h(t.label) + '</span></button>';
+  }).join('');
+  $$('#tabbar button').forEach(function(b){
+    b.onclick = function(){ go(b.getAttribute('data-tab')); };
+  });
+}
+
+var _pollTimer = null;
+function go(tab, tham){
+  if (_pollTimer){ clearInterval(_pollTimer); _pollTimer = null; }
+  S.tab = tab;
+  veTabbar();
+  $('#view').scrollTop = 0;
+  window.scrollTo(0, 0);
+  var f = VIEWS[tab];
+  if (!f){ $('#view').innerHTML = trong('&#128679;', 'Chưa có màn hình này.'); return; }
+  $('#view').innerHTML = '<div class="card"><div class="center muted small">Đang tải…</div></div>';
+  Promise.resolve(f($('#view'), tham || {})).catch(function(e){
+    $('#view').innerHTML = '<div class="card"><div class="empty"><div class="ic">&#9888;</div>' +
+      '<div>' + h(e.message) + '</div><button class="btn sm mt" onclick="go(S.tab)">Thử lại</button></div></div>';
+  });
+}
+function lamMoi(){ go(S.tab); }
+function datPoll(fn, giay){
+  if (_pollTimer) clearInterval(_pollTimer);
+  _pollTimer = setInterval(fn, (giay || 25) * 1000);
+}
+
+/* ============ Khởi động ============ */
+function veTopbar(){
+  var m = S.me || {};
+  $('#tbAv').textContent = chuCai(m.hoTen);
+  $('#tbName').textContent = m.hoTen || '';
+  $('#tbSub').textContent = (m.chucVu === 'QuanLy' ? 'Quản lý' : 'Nhân viên') + ' • ' + (m.maNV || '');
+}
+
+function vaoApp(){
+  hide('#splash'); hide('#loginScreen'); show('#app');
+  veTopbar();
+  if (S.me && S.me.doiPinLanDau){ manDoiPin(true); return; }
+  go(dsTab()[0].id);
+}
+
+function khoiDong(){
+  $('#lgBtn').onclick = dangNhap;
+  $('#lgPin').addEventListener('keydown', function(e){ if (e.key === 'Enter') dangNhap(); });
+  $('#lgMa').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('#lgPin').focus(); });
+  $('#tbLogout').onclick = function(){
+    xacNhan('Đăng xuất khỏi thiết bị này?', { ok:'Đăng xuất' }).then(function(y){ if (y) dangXuat(); });
+  };
+  $('#tbReload').onclick = lamMoi;
+
+  var t = null;
+  try { t = localStorage.getItem(KEY_TOKEN); } catch(e){}
+  if (!t){ hide('#splash'); show('#loginScreen'); return; }
+
+  S.token = t;
+  api('me', {}, { im:true })
+    .then(function(d){
+      S.me = d.me; S.cfg = d.cauHinh || {};
+      datLechGio(S.cfg.serverTime);
+      vaoApp();
+    })
+    .catch(function(){ dangXuat(); });
+}
+
+document.addEventListener('DOMContentLoaded', khoiDong);
+</script>
