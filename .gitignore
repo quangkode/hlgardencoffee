@@ -16,3 +16,11 @@ Desktop.ini
 # Apps Script CLI (clasp) — .clasp.json chứa ID file Sheets riêng của bạn
 .clasp.json
 .clasprc.json
+
+# Khoá service account — TUYỆT ĐỐI không được commit, chỉ đặt trong biến
+# môi trường trên Vercel. Ai có file này là đọc/ghi được toàn bộ dữ liệu.
+*-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].json
+service-account*.json
+credentials*.json
+.env
+.env.*
