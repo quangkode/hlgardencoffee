@@ -1,0 +1,5 @@
+# Không cần đẩy lên Vercel — chỉ là tài liệu và bộ kiểm thử
+kiem-thu/
+apps-script/
+*.md
+huong-dan.html

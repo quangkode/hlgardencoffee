@@ -1,186 +1,210 @@
-# ☕ Hệ thống chấm công & quản lý nhân sự quán cà phê
+# ☕ Chấm công quán cà phê
 
-Web app chạy trên **Google Apps Script + Google Sheets**. Không cần server, không cần
-tên miền, không tốn phí hosting. Toàn bộ dữ liệu nằm trong **một file Google Sheets**
-của bạn — mở ra xem, lọc, in, xuất Excel bất cứ lúc nào.
+Web app quản lý nhân sự cho quán cà phê nhỏ: **chấm công, báo ca, kiểm kho, giao ca
+và tính lương**. Chạy trên **Vercel**, dữ liệu lưu trong **Google Sheets** của bạn.
 
-Thiết kế **ưu tiên điện thoại** (mobile-first), máy tính vẫn dùng tốt.
+Thiết kế **ưu tiên điện thoại**, máy tính vẫn dùng tốt. Nhân viên mở bằng link,
+không cần cài app, không cần tài khoản Google.
 
-> 📄 Hướng dẫn này còn có bản trang web dễ đọc trên điện thoại: mở file
-> [`huong-dan.html`](huong-dan.html) bằng trình duyệt, có tick từng bước và thanh tiến độ.
+> 📄 Bản hướng dẫn dễ đọc trên điện thoại: mở [`huong-dan.html`](huong-dan.html) bằng trình duyệt.
 
 ---
 
-## 1. Có gì trong này
+## 1. Có gì
 
 | Tính năng | Nhân viên | Quản lý |
 |---|---|---|
 | Chấm công vào/ra theo giờ máy chủ + GPS | ✅ | ✅ |
 | Báo ca (đăng ký lịch làm) | ✅ đăng ký | ✅ duyệt / xếp ca |
-| Theo dõi kết quả làm việc & lương | ✅ của mình | ✅ toàn quán |
+| Theo dõi giờ công & lương | ✅ của mình | ✅ toàn quán |
 | Kiểm kho cuối ca | ✅ nhập phiếu | ✅ xem hao hụt, quy ra tiền |
 | Giao ca (doanh thu, quỹ tiền mặt) | ✅ lập & xác nhận | ✅ tổng hợp |
 | Bảng lương, thưởng/phạt, chốt lương | — | ✅ |
 | Quản lý nhân viên, ca làm, cài đặt quán | — | ✅ |
 
-**Chống gian lận chấm công:**
-- Giờ lấy từ **máy chủ Google**, không lấy từ điện thoại → sửa giờ máy không ăn thua.
+**Chống gian lận chấm công**
+
+- Giờ lấy từ **máy chủ**, không lấy từ điện thoại → sửa giờ máy không ăn thua.
 - Kiểm tra **GPS** so với toạ độ quán, có bán kính cho phép. Ngoài vùng thì gắn cờ đỏ
-  cho quản lý xem, hoặc chặn hẳn (tuỳ bạn chọn).
-- Tuỳ chọn **bắt chụp ảnh** khi chấm công (ảnh lưu vào Google Drive của bạn).
-- Mọi thao tác đều ghi vào sheet `NhatKy`.
+  cho quản lý xem, hoặc chặn hẳn — tuỳ bạn chọn.
+- Mọi thao tác, kể cả quản lý sửa công, đều ghi vào sheet `NhatKy`.
+
+**Bảo mật**
+
+- Đăng nhập bằng mã nhân viên + PIN. PIN băm bằng **scrypt** kèm salt riêng cho từng
+  người và một chuỗi bí mật (pepper) nằm ngoài bảng tính — file Sheets có lọt ra ngoài
+  cũng không dò ngược được PIN.
+- Phiên đăng nhập ký HMAC, hết hạn theo cài đặt, đổi PIN là phiên cũ chết ngay.
+- Khoá tạm 10 phút sau 5 lần sai PIN.
+- Bắt buộc đổi PIN ở lần đăng nhập đầu.
 
 ---
 
-## 2. Cài đặt (làm 1 lần, khoảng 10 phút)
+## 2. Cài đặt
 
-### Bước 1 — Tạo file dữ liệu
-1. Vào [sheets.new](https://sheets.new) tạo một Google Sheets mới.
-2. Đặt tên, ví dụ `DATA - Chấm công quán`.
+Cần khoảng 20 phút. Làm bằng **Gmail cá nhân**, đừng dùng tài khoản trường hay công ty —
+dữ liệu sẽ thuộc về tổ chức đó và quản trị viên có quyền xoá.
 
-### Bước 2 — Mở trình soạn code
-Trên file Sheets vừa tạo: **Tiện ích mở rộng (Extensions) → Apps Script**.
+### Bước 1 — Tạo file Google Sheets
 
-### Bước 3 — Dán code vào
-Trong Apps Script, xoá file `Code.gs` mẫu có sẵn, rồi tạo lần lượt các file dưới đây
-(bấm dấu **+** cạnh chữ *Files*) và dán nội dung từ thư mục [apps-script/](apps-script/):
+1. Vào [sheets.new](https://sheets.new), đặt tên ví dụ `DATA - Chấm công quán`.
+2. Nhìn thanh địa chỉ, copy đoạn ID giữa `/d/` và `/edit`:
 
-| Tạo kiểu | Tên file (gõ đúng, không cần đuôi) |
+```
+https://docs.google.com/spreadsheets/d/  1AbC...XyZ  /edit
+                                         └── đây là GOOGLE_SHEET_ID
+```
+
+Không cần tự tạo sheet con hay tiêu đề — app tự tạo đủ 11 sheet ở lần chạy đầu.
+
+### Bước 2 — Tạo service account
+
+Đây là "tài khoản máy" để Vercel thay bạn ghi vào Sheets.
+
+1. Vào [console.cloud.google.com](https://console.cloud.google.com) → tạo project mới,
+   đặt tên gì cũng được.
+2. Tìm ô tìm kiếm trên cùng, gõ **Google Sheets API** → mở ra → bấm **Enable**.
+3. Vào **APIs & Services → Credentials** → **Create Credentials** → **Service account**.
+   - Đặt tên bất kỳ, ví dụ `chamcong`, bấm **Done**.
+4. Bấm vào service account vừa tạo → tab **Keys** → **Add key** → **Create new key**
+   → chọn **JSON** → **Create**. Máy sẽ tải về một file `.json`.
+5. Mở file JSON đó bằng Notepad. Bạn cần đúng 2 giá trị:
+   - `client_email` → dạng `chamcong@ten-project.iam.gserviceaccount.com`
+   - `private_key`  → chuỗi dài bắt đầu bằng `-----BEGIN PRIVATE KEY-----`
+
+### Bước 3 — Cho service account quyền vào file Sheets
+
+Mở lại file Sheets ở Bước 1 → nút **Chia sẻ** → dán `client_email` vào →
+chọn quyền **Người chỉnh sửa** → **Gửi**.
+
+> Bỏ qua bước này là app báo lỗi *"Service account chưa có quyền vào file Sheets"*.
+
+### Bước 4 — Đưa lên Vercel
+
+1. Vào [vercel.com](https://vercel.com), đăng nhập bằng GitHub.
+2. **Add New → Project** → chọn repo `hlgardencoffee` → **Import**.
+3. Phần *Framework Preset* để **Other**. Không cần sửa gì khác.
+4. Mở mục **Environment Variables**, thêm 5 biến:
+
+| Tên biến | Giá trị |
 |---|---|
-| Script | `Code`, `Db`, `Setup`, `Auth`, `ApiChamCong`, `ApiCa`, `ApiKho`, `ApiGiaoCa`, `ApiLuong`, `ApiQuanLy` |
-| HTML | `Index`, `Css`, `JsCore`, `JsNhanVien`, `JsQuanLy` |
+| `GOOGLE_SHEET_ID` | ID lấy ở Bước 1 |
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | `client_email` ở Bước 2 |
+| `GOOGLE_PRIVATE_KEY` | `private_key` ở Bước 2 — dán **cả** dòng `-----BEGIN...` và `-----END...` |
+| `PIN_PEPPER` | Một chuỗi ngẫu nhiên bạn tự đặt, càng dài càng tốt |
+| `TOKEN_SECRET` | Một chuỗi ngẫu nhiên khác |
 
-> **Lưu ý:** tên file phải chính xác từng chữ hoa/thường, vì code gọi lẫn nhau theo tên.
+Cần chuỗi ngẫu nhiên? Mở tab mới, bấm F12, dán vào Console rồi Enter:
 
-Sau đó bật hiện file cấu hình: biểu tượng **⚙ Project Settings** →
-tick **"Show appsscript.json manifest file"** → quay lại tab Editor, mở `appsscript.json`
-và dán nội dung từ [apps-script/appsscript.json](apps-script/appsscript.json).
+```js
+crypto.randomUUID() + crypto.randomUUID()
+```
 
-### Bước 4 — Khởi tạo dữ liệu
+5. Bấm **Deploy**, chờ khoảng một phút.
 
-`khoiTaoHeThong` **không phải nút bấm** — nó là một hàm nằm trong file `Setup.gs`.
-Chạy nó như sau:
+### Bước 5 — Đăng nhập
 
-1. Bấm **Ctrl + S** để lưu. Chưa lưu thì Apps Script chưa "thấy" code mới.
-2. Ở cột **Files** bên trái, **bấm vào file `Setup.gs`**.
-   > ⚠️ **Đây là chỗ hay bị kẹt nhất.** Ô chọn hàm chỉ liệt kê các hàm của **file đang mở**.
-   > Nếu bạn đang mở `Code.gs` thì sẽ không bao giờ thấy `khoiTaoHeThong` trong danh sách.
-3. Nhìn thanh công cụ ngay **phía trên khung code**, có dãy: `▷ Run`  `🐞 Debug`  `[ô chọn hàm ▾]`  `Execution log`.
-   Mở ô chọn hàm đó và chọn **`khoiTaoHeThong`**.
-4. Bấm **▷ Run**.
-5. Google hỏi cấp quyền → **Review permissions** → chọn tài khoản của bạn →
-   màn hình "Google hasn't verified this app" → **Advanced** → **Go to … (unsafe)** → **Allow**.
-   *(Đây là code của chính bạn chạy trên tài khoản của bạn, không gửi đi đâu cả.)*
-6. Xem khung **Execution log** phía dưới — hiện `Execution completed` là xong.
-   Quay lại file Sheets, bấm F5, sẽ thấy đủ 11 sheet và dữ liệu mẫu.
-
-**Vẫn không thấy tên hàm trong danh sách?** Nghĩa là file `Setup.gs` chưa được dán code,
-hoặc code bị lỗi cú pháp (Apps Script sẽ gạch đỏ). Kiểm tra lại Bước 3.
-
-### Bước 5 — Xuất bản web app
-1. Bấm **Deploy → New deployment**.
-2. Bánh răng ⚙ cạnh *Select type* → chọn **Web app**.
-3. Điền:
-   - **Execute as:** `Me` (chính bạn)
-   - **Who has access:** `Anyone`
-4. Bấm **Deploy** → copy **Web app URL**.
-
-> **"Anyone" có nguy hiểm không?** Không. Người có link chỉ mở được **màn hình đăng nhập**.
-> Muốn vào phải có mã nhân viên + PIN. Đây là cách duy nhất để nhân viên dùng được mà
-> không cần ai cũng phải có tài khoản Google.
-
-### Bước 6 — Đăng nhập lần đầu
-Mở link vừa copy trên điện thoại:
+Mở link Vercel vừa cấp (dạng `ten-du-an.vercel.app`) trên điện thoại:
 
 | Tài khoản | Mã | PIN |
 |---|---|---|
 | Quản lý | `QL001` | `1234` |
 | Nhân viên mẫu | `NV001` | `1234` |
 
-Hệ thống **bắt đổi PIN ngay lần đầu** — đổi xong mới dùng được.
+Hệ thống **bắt đổi PIN ngay lần đầu**. Lượt mở đầu tiên hơi lâu vì app đang tự tạo
+11 sheet và dữ liệu mẫu — mở lại file Sheets sẽ thấy.
 
-### Bước 7 — Cấu hình quán
-Đăng nhập bằng `QL001` → tab **Thêm ☰ → Cài đặt quán**:
+### Bước 6 — Cấu hình quán
+
+Đăng nhập `QL001` → tab **Thêm ☰ → Cài đặt quán**:
 
 1. **Đứng tại quán**, bấm *"Lấy vị trí hiện tại làm vị trí quán"*.
-2. Đặt **bán kính chấm công** (gợi ý 100–200m; để `0` nếu không muốn kiểm tra vị trí).
-3. Chỉnh lương/giờ mặc định, mức phạt trễ, phụ cấp ca…
-4. Bấm **Lưu cài đặt**.
+2. Đặt **bán kính chấm công** — gợi ý 100–200m. Để `0` nếu không muốn kiểm tra vị trí.
+3. Sửa lương/giờ mặc định cho đúng quán bạn.
 
-Rồi vào **Thêm ☰ → Nhân viên** để thêm người thật, và
-**Cài đặt → Ca làm việc** để sửa giờ ca cho khớp quán bạn.
+Rồi vào **Nhân viên** thêm người thật, **Cài đặt → Ca làm việc** sửa giờ ca cho khớp.
 
-### Bước 8 — Phát cho nhân viên
-Gửi link web app + mã NV + PIN `1234` cho từng người. Hướng dẫn họ:
+### Bước 7 — Phát cho nhân viên
 
-- **iPhone (Safari):** bấm nút Chia sẻ → *Thêm vào MH chính*
-- **Android (Chrome):** menu ⋮ → *Thêm vào màn hình chính*
+Gửi link kèm mã nhân viên và PIN `1234`. Bảo họ thêm vào màn hình chính:
 
-Sau đó app hiện như một ứng dụng thật trên điện thoại.
+- **iPhone / Safari** — nút Chia sẻ → *Thêm vào MH chính*
+- **Android / Chrome** — menu ⋮ → *Thêm vào màn hình chính*
 
 ---
 
-## 3. Dùng hằng ngày
+## 3. Công thức lương
 
-**Nhân viên**
-1. Đến quán → mở app → **CHẤM CÔNG VÀO**
-2. Cuối ca: nhập **Kiểm kho** → lập **Giao ca** → **CHẤM CÔNG RA**
-3. Tab **Của tôi** xem giờ công và lương tạm tính bất cứ lúc nào.
-
-**Quản lý**
-1. Tab **Tổng quan** — ai đang trong ca (tự cập nhật 25 giây/lần), ai đi trễ, ai chấm
-   ngoài vùng, hàng sắp hết, doanh thu & lệch quỹ hôm nay.
-2. Tab **Chấm công** — sửa/thêm/xoá công khi nhân viên quên bấm.
-3. Tab **Lương** — xem chi tiết từng người, thêm thưởng/phạt, **Chốt lương** cuối tháng.
-4. **Thêm ☰ → Lịch ca** — duyệt ca nhân viên báo, hoặc tự xếp ca.
-
----
-
-## 4. Công thức tính lương
-
-Đơn giản: **ca nào cũng như ca nào**, cứ giờ công nhân lương giờ.
+Ca nào cũng như ca nào, cứ giờ công nhân lương giờ:
 
 ```
-tiền ca = (số phút làm ÷ 60) × lương/giờ
-```
-
-Cả tháng:
-
-```
+tiền ca   = (số phút làm ÷ 60) × lương/giờ
 THỰC NHẬN = Σ tiền ca + thưởng − phạt
 ```
 
-Với lương mặc định 25.000đ/giờ: làm 6 tiếng được 150.000đ, bất kể ca sáng hay ca đêm.
+Với mức mặc định 25.000đ/giờ: làm 6 tiếng được 150.000đ, ca sáng hay ca đêm đều vậy.
 
-- **Không có hệ số ca**, **không phạt tiền khi đi trễ**. Số phút đi trễ vẫn được ghi
-  lại và hiện cho quản lý theo dõi, nhưng không trừ vào lương.
-- **Số phút nghỉ giữa ca** được trừ ra khỏi giờ công.
-- **Thưởng / phạt** quản lý nhập tay theo tháng, có ghi lý do — đây là cách duy nhất
-  tiền bị cộng/trừ ngoài giờ công.
-- **Ca qua đêm** (giờ kết thúc < giờ bắt đầu) được tính đúng, ghi vào ngày bắt đầu ca.
-- **Phụ cấp ca** mặc định tắt (= 0). Nếu sau này muốn thưởng thêm mỗi ca đủ giờ,
-  bật trong *Cài đặt quán* hoặc đặt riêng cho từng nhân viên.
+- **Không hệ số ca, không phạt tiền đi trễ.** Số phút trễ vẫn ghi lại và hiện cho
+  quản lý theo dõi, nhưng không trừ lương.
+- **Nghỉ giữa ca** được trừ khỏi giờ công.
+- **Ca qua đêm** tính đúng, ghi vào ngày bắt đầu ca.
+- **Thưởng / phạt** quản lý nhập tay theo tháng — cách duy nhất tiền bị cộng trừ
+  ngoài giờ công.
+- **Phụ cấp ca** mặc định tắt. Muốn thưởng thêm mỗi ca đủ giờ thì bật trong Cài đặt.
 
 ---
 
-## 5. Cấu trúc dữ liệu (11 sheet)
+## 4. Dữ liệu
 
-| Sheet | Nội dung |
+Tất cả nằm trong một file Google Sheets của bạn — mở ra xem, lọc, in, xuất Excel bất cứ
+lúc nào. Sửa tay trên Sheets cũng được, app đọc lại ngay.
+
+| Sheet | Chứa gì |
 |---|---|
 | `NhanVien` | Nhân sự, lương/giờ, vai trò, PIN đã băm |
-| `CaLamViec` | Định nghĩa ca: giờ, nghỉ giữa ca, hệ số lương |
+| `CaLamViec` | Định nghĩa ca: giờ, nghỉ giữa ca |
 | `LichLamViec` | Báo ca / xếp ca và trạng thái duyệt |
-| `ChamCong` | Từng lượt vào/ra, GPS, số phút công, trễ, về sớm |
+| `ChamCong` | Từng lượt vào/ra, GPS, phút công, trễ, về sớm |
 | `DanhMucHang` | Mặt hàng, đơn vị, tồn định mức, giá vốn |
-| `KiemKho` | Từng dòng kiểm kho: tồn trước, nhập, thực tế, hao hụt |
-| `GiaoCa` | Biên bản giao ca: doanh thu, quỹ tiền mặt, chênh lệch |
-| `ThuongPhat` | Thưởng/phạt thủ công theo tháng |
+| `KiemKho` | Tồn trước, nhập thêm, thực tế, hao hụt |
+| `GiaoCa` | Doanh thu, quỹ tiền mặt, chênh lệch từng ca |
+| `ThuongPhat` | Thưởng / phạt thủ công theo tháng |
 | `BangLuong` | Kết quả chốt lương từng tháng |
 | `CaiDat` | Toàn bộ cấu hình quán |
 | `NhatKy` | Nhật ký mọi thao tác |
 
-Bạn **sửa trực tiếp trên Sheets được** — app đọc lại ngay. Nhưng đừng đổi tên cột
-hoặc xoá dòng tiêu đề.
+> ⚠️ Đừng đổi tên cột hoặc xoá dòng tiêu đề — app đọc dữ liệu theo tên cột.
+
+---
+
+## 5. Cấu trúc mã nguồn
+
+```
+index.html          Toàn bộ giao diện (HTML + CSS + JS thuần, không cần build)
+api/index.js        Cổng API duy nhất, định tuyến mọi thao tác
+api/_lib/core.js    Kết nối Google Sheets, ảnh chụp dữ liệu, tiện ích
+api/_lib/auth.js    Băm PIN, token phiên, đăng nhập
+api/_lib/setup.js   Khởi tạo sheet và dữ liệu mẫu lần đầu
+api/_lib/business.js Nghiệp vụ: chấm công, ca, kho, giao ca, lương
+kiem-thu/           Bộ kiểm thử + giả lập Google Sheets API
+apps-script/        Bản Apps Script cũ, đã ngừng dùng — giữ lại tham khảo
+```
+
+Không dùng framework, **không có thư viện phụ thuộc nào**. JWT gọi Google API được ký
+thẳng bằng `node:crypto`, nên hàm khởi động nhanh và không dính lỗ hổng của gói ngoài.
+
+**Cách tối ưu tốc độ:** mỗi lượt gọi API nạp đúng những sheet cần dùng trong một lần
+`batchGet`, chạy toàn bộ nghiệp vụ đồng bộ trên bộ nhớ, rồi gom mọi thay đổi ghi ngược
+một lượt. Bảng tổng quan của quản lý — vốn đụng 8 sheet — chỉ tốn **một vòng mạng**.
+
+### Kiểm thử
+
+**119 test** phủ toàn bộ nghiệp vụ, chạy qua chính handler API thật với lớp Google
+Sheets giả lập, nên bắt được cả lỗi ở tầng ghi dữ liệu:
+
+```bash
+node kiem-thu/test.js
+```
 
 ---
 
@@ -188,49 +212,40 @@ hoặc xoá dòng tiêu đề.
 
 **Nhân viên quên PIN?**
 Quản lý → **Nhân viên** → chọn người → *Reset PIN về 1234*.
-Hoặc ngay trên Sheets: menu **☕ Chấm công → Reset PIN**.
 
-**Quên luôn PIN quản lý?**
-Trên file Sheets: menu **☕ Chấm công → Tạo lại tài khoản quản lý QL001** (PIN về `1234`).
+**Quên PIN quản lý, không ai vào được nữa?**
+Mở file Sheets → sheet `NhanVien` → xoá dòng của `QL001` → vào Vercel bấm **Redeploy**.
+App sẽ tạo lại `QL001` với PIN `1234`. Các nhân viên khác không bị ảnh hưởng.
 
-**Nhân viên quên chấm ra?**
-Tổng quan sẽ cảnh báo đỏ. Vào tab **Chấm công**, bấm vào dòng đó và điền giờ ra.
+**Sửa code thì cập nhật thế nào?**
+`git push` là xong — Vercel tự deploy, link giữ nguyên.
 
-**Sửa code rồi, sao app không đổi?**
-Phải deploy lại: **Deploy → Manage deployments** → bấm ✏️ → *Version* chọn **New version**
-→ **Deploy**. Làm cách này thì **link cũ giữ nguyên**, không phải gửi lại cho nhân viên.
-(Bấm *New deployment* sẽ tạo link mới — đừng làm vậy.)
+**Đổi `PIN_PEPPER` được không?**
+⚠️ **Không.** Đổi là toàn bộ PIN hiện có mất hiệu lực, không ai đăng nhập được nữa.
+Nếu lỡ đổi: xoá hết dòng trong sheet `NhanVien` (giữ dòng tiêu đề), Redeploy để tạo
+lại `QL001`, rồi thêm lại nhân viên.
 
-**Nhân viên chấm công hộ nhau được không?**
-Có thể, nếu cho mượn PIN. Muốn chặt hơn: bật **"Bắt chụp ảnh khi chấm công"** trong
-Cài đặt — mỗi lượt chấm công sẽ có ảnh selfie kèm giờ, lưu trên Drive.
+**Chi phí?**
+Miễn phí. Vercel gói Hobby và Google Sheets API đều thừa cho quán 5–30 người.
 
-**Bao nhiêu người dùng được?**
-Thoải mái cho quán 5–30 nhân viên. Google Apps Script miễn phí cho phép ~20.000
-lượt gọi/ngày, dư sức.
-
-**Có tốn tiền không?**
-Không. Chỉ cần một tài khoản Google thường.
+**App chậm ở lần mở đầu tiên?**
+Bình thường. Vercel cho hàm ngủ khi không ai dùng, lần gọi đầu mất 1–2 giây để đánh
+thức. Các lần sau nhanh ngay.
 
 ---
 
 ## 7. Giới hạn cần biết
 
-- Cập nhật "đang trong ca" là **poll mỗi 25 giây**, không phải websocket — Apps Script
-  không hỗ trợ kết nối thường trực. Với quán cà phê thì thừa nhanh.
-- GPS điện thoại sai số 10–50m tuỳ máy và vị trí. Đừng đặt bán kính dưới 100m,
-  kẻo nhân viên đứng đúng trong quán vẫn bị báo ngoài vùng.
-- Nếu dùng trong nhà, tín hiệu GPS yếu → nên để chế độ **cảnh báo** (`chanNgoaiVung = FALSE`)
-  thay vì chặn hẳn, tránh nhân viên không chấm công được.
-
----
-
-## 8. Kiểm thử
-
-Thư mục [kiem-thu/](kiem-thu/) chứa bộ giả lập môi trường Apps Script chạy bằng Node,
-với **111 test** phủ toàn bộ nghiệp vụ (đăng nhập, phân quyền, chấm công, ca qua đêm,
-lương, kiểm kho, giao ca). Chạy sau mỗi lần sửa code:
-
-```bash
-node kiem-thu/test.js apps-script
-```
+- **Không phải thời gian thực tuyệt đối.** Màn hình "đang trong ca" hỏi lại máy chủ mỗi
+  25 giây. Với quán cà phê thì thừa nhanh.
+- **GPS sai số 10–50m** tuỳ máy. Đừng đặt bán kính dưới 100m, kẻo nhân viên đứng ngay
+  trong quán vẫn bị báo ngoài vùng. Trong nhà tín hiệu yếu thì nên để chế độ cảnh báo
+  thay vì chặn hẳn.
+- **Chưa có chụp ảnh khi chấm công.** Bản Apps Script cũ lưu ảnh vào Google Drive;
+  service account không có dung lượng Drive riêng nên tính năng này tạm bỏ. Cần thì
+  gắn thêm Vercel Blob sau.
+- **Không khoá ghi đồng thời.** Hai người thao tác đúng cùng một giây trên cùng một
+  dòng có thể giẫm chân nhau. Thêm dòng mới thì luôn an toàn; sửa và xoá chỉ quản lý
+  làm nên xác suất gần như không có.
+- **Dọn dữ liệu mỗi năm.** Sheet `KiemKho` và `NhatKy` phình nhanh nhất. Khi `ChamCong`
+  vượt khoảng 20.000 dòng, nên cắt dữ liệu năm cũ sang file lưu trữ riêng.

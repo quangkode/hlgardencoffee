@@ -1,0 +1,13 @@
+{
+  "name": "chamcong-quan-ca-phe",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Chấm công, báo ca, kiểm kho, giao ca và tính lương cho quán cà phê nhỏ. Chạy trên Vercel, dữ liệu lưu ở Google Sheets.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node kiem-thu/test.js"
+  }
+}

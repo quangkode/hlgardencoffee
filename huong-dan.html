@@ -243,13 +243,14 @@ footer{
     <span class="eyebrow">Hướng dẫn cài đặt · Google Sheets</span>
     <h1>Chấm công quán cà phê</h1>
     <p class="lede">
-      Chấm công, báo ca, kiểm kho, giao ca và tính lương — chạy trên chính file
-      Google Sheets của bạn. Nhân viên mở bằng link trên điện thoại, không cần cài app.
+      Chấm công, báo ca, kiểm kho, giao ca và tính lương — chạy trên Vercel,
+      dữ liệu nằm trong file Google Sheets của bạn. Nhân viên mở bằng link
+      trên điện thoại, không cần cài app, không cần tài khoản Google.
     </p>
     <div class="facts">
       <span class="fact">Miễn phí hoàn toàn</span>
-      <span class="fact">Không cần server</span>
-      <span class="fact">Cài đặt ~10 phút</span>
+      <span class="fact">Cài đặt ~20 phút</span>
+      <span class="fact">Sửa code là tự deploy</span>
       <span class="fact">Ưu tiên điện thoại</span>
     </div>
   </header>
@@ -279,15 +280,15 @@ footer{
     <div class="guards">
       <div class="guard">
         <h4>Giờ máy chủ</h4>
-        <p>Giờ lấy từ máy chủ Google, không lấy từ điện thoại. Sửa giờ trên máy không ăn thua.</p>
+        <p>Giờ lấy từ máy chủ, không lấy từ điện thoại. Sửa giờ trên máy không ăn thua.</p>
       </div>
       <div class="guard">
         <h4>Vòng GPS</h4>
         <p>So vị trí với toạ độ quán. Ngoài bán kính thì gắn cờ đỏ cho bạn xem, hoặc chặn hẳn — tuỳ bạn chọn.</p>
       </div>
       <div class="guard">
-        <h4>Ảnh chấm công</h4>
-        <p>Bật tuỳ chọn này thì mỗi lượt chấm công phải chụp ảnh, lưu vào Google Drive của bạn.</p>
+        <h4>PIN băm scrypt</h4>
+        <p>Mỗi người một chuỗi muối riêng, cộng một khoá bí mật nằm ngoài bảng tính. File Sheets lọt ra ngoài cũng không dò ngược được PIN.</p>
       </div>
       <div class="guard">
         <h4>Nhật ký</h4>
@@ -298,114 +299,100 @@ footer{
 
   <section class="blk">
     <span class="eyebrow">Làm một lần</span>
-    <h2>Tám bước cài đặt</h2>
+    <h2>Sáu bước cài đặt</h2>
+    <p>Làm bằng <b>Gmail cá nhân</b>. Đừng dùng tài khoản trường hay công ty — dữ liệu sẽ thuộc về tổ chức đó và quản trị viên có quyền xoá.</p>
     <div class="progress">
-      <span id="cnt">0 / 8</span>
+      <span id="cnt">0 / 6</span>
       <span class="bar"><i id="barfill"></i></span>
     </div>
 
     <div class="step">
       <div class="gut"><span class="n">01</span><input type="checkbox" class="tick" aria-label="Xong bước 1"></div>
       <div class="bd">
-        <h3>Tạo file dữ liệu</h3>
-        <p>Vào <a href="https://sheets.new" target="_blank" rel="noopener">sheets.new</a> tạo một Google Sheets mới, đặt tên chẳng hạn <code>DATA - Chấm công quán</code>.</p>
+        <h3>Tạo file Google Sheets</h3>
+        <p>Vào <a href="https://sheets.new" target="_blank" rel="noopener">sheets.new</a>, đặt tên chẳng hạn <code>DATA - Chấm công quán</code>. Copy đoạn ID trên thanh địa chỉ, nằm giữa <code>/d/</code> và <code>/edit</code>:</p>
+        <div class="formula">docs.google.com/spreadsheets/d/<span class="tot">1AbC…XyZ</span>/edit
+                                <span class="op">↑ đây là GOOGLE_SHEET_ID</span></div>
+        <div class="note">Không cần tự tạo sheet con hay gõ tiêu đề cột — app tự tạo đủ 11 sheet ở lần chạy đầu.</div>
       </div>
     </div>
 
     <div class="step">
       <div class="gut"><span class="n">02</span><input type="checkbox" class="tick" aria-label="Xong bước 2"></div>
       <div class="bd">
-        <h3>Mở trình soạn code</h3>
-        <p>Trên file vừa tạo: <b>Tiện ích mở rộng</b> (Extensions) → <b>Apps Script</b>.</p>
+        <h3>Tạo service account</h3>
+        <p>Đây là "tài khoản máy" để Vercel thay bạn ghi vào Sheets.</p>
+        <ol>
+          <li>Vào <a href="https://console.cloud.google.com" target="_blank" rel="noopener">console.cloud.google.com</a> → tạo project mới, tên gì cũng được.</li>
+          <li>Ô tìm kiếm trên cùng → gõ <b>Google Sheets API</b> → mở ra → bấm <b>Enable</b>.</li>
+          <li><b>APIs &amp; Services → Credentials → Create Credentials → Service account</b>. Đặt tên rồi bấm <b>Done</b>.</li>
+          <li>Bấm vào service account vừa tạo → tab <b>Keys</b> → <b>Add key → Create new key → JSON → Create</b>. Máy tải về một file <code>.json</code>.</li>
+        </ol>
+        <p>Mở file JSON bằng Notepad, bạn cần đúng hai giá trị: <code>client_email</code> và <code>private_key</code>.</p>
       </div>
     </div>
 
     <div class="step">
       <div class="gut"><span class="n">03</span><input type="checkbox" class="tick" aria-label="Xong bước 3"></div>
       <div class="bd">
-        <h3>Dán code vào</h3>
-        <p>Xoá file <code>Code.gs</code> mẫu. Bấm dấu <b>+</b> cạnh chữ <i>Files</i> để tạo lần lượt 15 file, dán nội dung tương ứng từ thư mục <code>apps-script/</code>.</p>
-        <span class="ftype">Kiểu Script</span>
-        <div class="files">
-          <span><b>Code</b></span><span><b>Db</b></span><span><b>Setup</b></span><span><b>Auth</b></span>
-          <span><b>ApiChamCong</b></span><span><b>ApiCa</b></span><span><b>ApiKho</b></span>
-          <span><b>ApiGiaoCa</b></span><span><b>ApiLuong</b></span><span><b>ApiQuanLy</b></span>
-        </div>
-        <span class="ftype">Kiểu HTML</span>
-        <div class="files">
-          <span><b>Index</b></span><span><b>Css</b></span><span><b>JsCore</b></span>
-          <span><b>JsNhanVien</b></span><span><b>JsQuanLy</b></span>
-        </div>
-        <div class="note"><b>Tên phải đúng từng chữ hoa/thường</b> — các file gọi lẫn nhau theo tên. Không cần gõ đuôi <code>.gs</code> hay <code>.html</code>.</div>
-        <p>Cuối cùng, mở <b>⚙ Project Settings</b> → tick <i>Show appsscript.json manifest file</i> → quay lại Editor, mở <code>appsscript.json</code> và dán nội dung file cùng tên.</p>
+        <h3>Cho service account quyền vào Sheets</h3>
+        <p>Mở lại file Sheets ở bước 1 → nút <b>Chia sẻ</b> → dán <code>client_email</code> vào → chọn <b>Người chỉnh sửa</b> → <b>Gửi</b>.</p>
+        <div class="note warn">Bỏ qua bước này là app báo lỗi <i>"Service account chưa có quyền vào file Sheets"</i>. Đây là chỗ hay quên nhất.</div>
       </div>
     </div>
 
     <div class="step">
       <div class="gut"><span class="n">04</span><input type="checkbox" class="tick" aria-label="Xong bước 4"></div>
       <div class="bd">
-        <h3>Khởi tạo dữ liệu</h3>
-        <p><code>khoiTaoHeThong</code> <b>không phải một nút bấm</b> — nó là hàm nằm trong file <code>Setup.gs</code>. Chạy nó như sau:</p>
+        <h3>Đưa lên Vercel</h3>
         <ol>
-          <li>Bấm <kbd>Ctrl</kbd> + <kbd>S</kbd> để lưu. Chưa lưu thì Apps Script chưa thấy code mới.</li>
-          <li>Ở cột <b>Files</b> bên trái, <b>bấm vào file <code>Setup.gs</code></b>.</li>
-          <li>Nhìn thanh công cụ ngay trên khung code — dãy <code>▷ Run</code> · <code>Debug</code> · <b>[ô chọn hàm ▾]</b> · <code>Execution log</code>. Mở ô chọn hàm, chọn <code>khoiTaoHeThong</code>.</li>
-          <li>Bấm <b>▷ Run</b>.</li>
-          <li>Google hỏi cấp quyền → <b>Review permissions</b> → chọn tài khoản của bạn.</li>
-          <li>Gặp màn hình <i>"Google hasn't verified this app"</i> → <b>Advanced</b> → <b>Go to … (unsafe)</b> → <b>Allow</b>.</li>
+          <li>Vào <a href="https://vercel.com" target="_blank" rel="noopener">vercel.com</a>, đăng nhập bằng GitHub.</li>
+          <li><b>Add New → Project</b> → chọn repo → <b>Import</b>.</li>
+          <li><i>Framework Preset</i> để <b>Other</b>. Không cần sửa gì khác.</li>
+          <li>Mở <b>Environment Variables</b>, thêm 5 biến ở bảng dưới.</li>
+          <li>Bấm <b>Deploy</b>, chờ khoảng một phút.</li>
         </ol>
-        <div class="note warn"><b>Không thấy <code>khoiTaoHeThong</code> trong danh sách?</b> Đây là chỗ hay kẹt nhất: ô chọn hàm chỉ liệt kê các hàm của <b>file đang mở</b>. Đang mở <code>Code.gs</code> thì không bao giờ thấy nó — phải bấm sang <code>Setup.gs</code> trước. Nếu mở đúng file rồi mà vẫn không có, tức là file chưa được dán code hoặc code bị lỗi cú pháp.</div>
-        <div class="note">Cảnh báo "chưa xác minh" là bình thường: đây là code của chính bạn, chạy trên tài khoản của bạn, không gửi dữ liệu đi đâu cả.</div>
-        <p>Khung <b>Execution log</b> phía dưới hiện <i>Execution completed</i> là xong. Quay lại file Sheets bấm F5, sẽ thấy đủ 11 sheet cùng dữ liệu mẫu.</p>
+        <div class="scroll">
+          <table class="data">
+            <thead><tr><th>Tên biến</th><th>Giá trị</th></tr></thead>
+            <tbody>
+              <tr><td>GOOGLE_SHEET_ID</td><td>ID lấy ở bước 1</td></tr>
+              <tr><td>GOOGLE_SERVICE_ACCOUNT_EMAIL</td><td><code>client_email</code> ở bước 2</td></tr>
+              <tr><td>GOOGLE_PRIVATE_KEY</td><td><code>private_key</code> ở bước 2 — dán cả dòng <code>-----BEGIN…</code> và <code>-----END…</code></td></tr>
+              <tr><td>PIN_PEPPER</td><td>Chuỗi ngẫu nhiên bạn tự đặt, càng dài càng tốt</td></tr>
+              <tr><td>TOKEN_SECRET</td><td>Chuỗi ngẫu nhiên khác</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Cần chuỗi ngẫu nhiên? Mở tab mới, bấm <kbd>F12</kbd>, dán vào Console rồi Enter:</p>
+        <div class="formula">crypto.randomUUID() + crypto.randomUUID()</div>
       </div>
     </div>
 
     <div class="step">
       <div class="gut"><span class="n">05</span><input type="checkbox" class="tick" aria-label="Xong bước 5"></div>
       <div class="bd">
-        <h3>Xuất bản web app</h3>
+        <h3>Đăng nhập &amp; cấu hình quán</h3>
+        <p>Mở link Vercel vừa cấp trên điện thoại. Lượt mở đầu hơi lâu vì app đang tự tạo 11 sheet và dữ liệu mẫu.</p>
+        <div class="creds">
+          <span class="eyebrow">Tài khoản mặc định — hệ thống bắt đổi PIN ngay</span>
+          <div class="cred"><span class="who">Quản lý</span><span class="kv">QL001</span><span class="kv">PIN <b>1234</b></span></div>
+          <div class="cred"><span class="who">Nhân viên mẫu</span><span class="kv">NV001</span><span class="kv">PIN <b>1234</b></span></div>
+        </div>
+        <p>Rồi vào <b>Thêm ☰ → Cài đặt quán</b>:</p>
         <ol>
-          <li><b>Deploy</b> → <b>New deployment</b>.</li>
-          <li>Bấm bánh răng ⚙ cạnh <i>Select type</i> → chọn <b>Web app</b>.</li>
-          <li><i>Execute as</i>: <b>Me</b> — <i>Who has access</i>: <b>Anyone</b>.</li>
-          <li><b>Deploy</b> → copy <b>Web app URL</b>.</li>
+          <li><b>Đứng tại quán</b>, bấm <i>Lấy vị trí hiện tại làm vị trí quán</i>.</li>
+          <li>Đặt bán kính chấm công — gợi ý 100–200m. Để <code>0</code> nếu không muốn kiểm tra vị trí.</li>
+          <li>Sửa lương/giờ cho đúng quán bạn.</li>
         </ol>
-        <div class="note"><b>"Anyone" có nguy hiểm không?</b> Không. Người có link chỉ mở được màn hình đăng nhập; muốn vào phải có mã nhân viên và PIN. Đây là cách duy nhất để nhân viên dùng được mà không phải ai cũng cần tài khoản Google.</div>
       </div>
     </div>
 
     <div class="step">
       <div class="gut"><span class="n">06</span><input type="checkbox" class="tick" aria-label="Xong bước 6"></div>
       <div class="bd">
-        <h3>Đăng nhập lần đầu</h3>
-        <p>Mở link vừa copy trên điện thoại và đăng nhập bằng tài khoản khởi tạo. Hệ thống bắt đổi PIN ngay, đổi xong mới dùng được.</p>
-        <div class="creds">
-          <span class="eyebrow">Tài khoản mặc định — đổi ngay sau khi vào</span>
-          <div class="cred"><span class="who">Quản lý</span><span class="kv">QL001</span><span class="kv">PIN <b>1234</b></span></div>
-          <div class="cred"><span class="who">Nhân viên mẫu</span><span class="kv">NV001</span><span class="kv">PIN <b>1234</b></span></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="step">
-      <div class="gut"><span class="n">07</span><input type="checkbox" class="tick" aria-label="Xong bước 7"></div>
-      <div class="bd">
-        <h3>Cấu hình quán</h3>
-        <p>Đăng nhập <code>QL001</code> → tab <b>Thêm ☰</b> → <b>Cài đặt quán</b>:</p>
-        <ol>
-          <li><b>Đứng tại quán</b>, bấm <i>Lấy vị trí hiện tại làm vị trí quán</i>.</li>
-          <li>Đặt bán kính chấm công — gợi ý 100–200m. Để <code>0</code> nếu không muốn kiểm tra vị trí.</li>
-          <li>Chỉnh lương/giờ mặc định, phụ cấp ca, mức phạt đi trễ.</li>
-        </ol>
-        <p>Rồi vào <b>Nhân viên</b> thêm người thật, và <b>Ca làm việc</b> sửa giờ ca cho khớp quán bạn.</p>
-      </div>
-    </div>
-
-    <div class="step">
-      <div class="gut"><span class="n">08</span><input type="checkbox" class="tick" aria-label="Xong bước 8"></div>
-      <div class="bd">
         <h3>Phát cho nhân viên</h3>
-        <p>Gửi link web app kèm mã nhân viên và PIN <code>1234</code>. Hướng dẫn từng người thêm vào màn hình chính:</p>
+        <p>Vào <b>Nhân viên</b> thêm người thật, rồi gửi link kèm mã nhân viên và PIN <code>1234</code>. Hướng dẫn từng người thêm vào màn hình chính:</p>
         <ul>
           <li><b>iPhone / Safari</b> — nút Chia sẻ → <i>Thêm vào MH chính</i></li>
           <li><b>Android / Chrome</b> — menu ⋮ → <i>Thêm vào màn hình chính</i></li>
@@ -488,45 +475,50 @@ footer{
     <div class="faq">
       <details>
         <summary>Nhân viên quên PIN thì làm sao?</summary>
-        <div class="ans"><p>Quản lý → <b>Nhân viên</b> → chọn người → <i>Reset PIN về 1234</i>. Hoặc ngay trên file Sheets: menu <b>☕ Chấm công → Reset PIN</b>.</p></div>
+        <div class="ans"><p>Quản lý → <b>Nhân viên</b> → chọn người → <i>Reset PIN về 1234</i>. Người đó sẽ phải đặt PIN mới khi đăng nhập.</p></div>
       </details>
       <details>
-        <summary>Quên luôn PIN quản lý?</summary>
-        <div class="ans"><p>Trên file Sheets: menu <b>☕ Chấm công → Tạo lại tài khoản quản lý QL001</b>. PIN trở về <code>1234</code> và bắt đổi khi đăng nhập.</p></div>
+        <summary>Quên PIN quản lý, không ai vào được nữa?</summary>
+        <div class="ans"><p>Mở file Sheets → sheet <code>NhanVien</code> → xoá dòng của <code>QL001</code> → vào Vercel bấm <b>Redeploy</b>. App tạo lại <code>QL001</code> với PIN <code>1234</code>. Nhân viên khác không bị ảnh hưởng.</p></div>
+      </details>
+      <details>
+        <summary>Sửa code thì cập nhật thế nào?</summary>
+        <div class="ans"><p><code>git push</code> là xong. Vercel tự deploy, link giữ nguyên, không phải gửi lại cho nhân viên.</p></div>
+      </details>
+      <details>
+        <summary>Đổi PIN_PEPPER được không?</summary>
+        <div class="ans">
+          <p><b>Không.</b> Đổi là toàn bộ PIN hiện có mất hiệu lực, không ai đăng nhập được nữa.</p>
+          <p>Nếu lỡ đổi: xoá hết dòng trong sheet <code>NhanVien</code> (giữ dòng tiêu đề), Redeploy để tạo lại <code>QL001</code>, rồi thêm lại nhân viên.</p>
+        </div>
       </details>
       <details>
         <summary>Nhân viên quên chấm ra?</summary>
         <div class="ans"><p>Tổng quan hiện cảnh báo đỏ và không đếm người đó là "đang trong ca". Vào tab <b>Chấm công</b>, bấm vào dòng đó, điền giờ ra — hệ thống tính lại công ngay.</p></div>
       </details>
       <details>
-        <summary>Sửa code rồi mà app không đổi?</summary>
-        <div class="ans">
-          <p>Phải deploy lại: <b>Deploy → Manage deployments</b> → bấm ✏️ → <i>Version</i> chọn <b>New version</b> → <b>Deploy</b>.</p>
-          <p>Làm cách này link cũ giữ nguyên, không phải gửi lại cho nhân viên. Bấm <i>New deployment</i> sẽ tạo link mới — đừng làm vậy.</p>
-        </div>
-      </details>
-      <details>
-        <summary>Quán bao nhiêu người thì dùng được?</summary>
-        <div class="ans"><p>Thoải mái cho 5–30 nhân viên. Apps Script miễn phí cho khoảng 20.000 lượt gọi mỗi ngày — dư sức.</p></div>
+        <summary>App chậm ở lần mở đầu tiên?</summary>
+        <div class="ans"><p>Bình thường. Vercel cho hàm ngủ khi không ai dùng, lần gọi đầu mất 1–2 giây để đánh thức. Các lần sau nhanh ngay.</p></div>
       </details>
       <details>
         <summary>Có tốn tiền hằng tháng không?</summary>
-        <div class="ans"><p>Không đồng nào. Chỉ cần một tài khoản Google thường.</p></div>
+        <div class="ans"><p>Không đồng nào. Vercel gói Hobby và Google Sheets API đều thừa cho quán 5–30 người.</p></div>
       </details>
     </div>
   </section>
 
   <section class="blk">
     <span class="eyebrow">Nói trước cho rõ</span>
-    <h2>Ba giới hạn</h2>
+    <h2>Bốn giới hạn</h2>
     <ul class="limits">
-      <li><b>Không phải thời gian thực tuyệt đối.</b> Màn hình "đang trong ca" hỏi lại máy chủ mỗi 25 giây — Apps Script không giữ kết nối thường trực được. Với quán cà phê thì thừa nhanh.</li>
-      <li><b>GPS sai số 10–50m</b> tuỳ máy và vị trí. Đừng đặt bán kính dưới 100m, kẻo nhân viên đứng ngay trong quán vẫn bị báo ngoài vùng.</li>
-      <li><b>Trong nhà tín hiệu yếu.</b> Nên để chế độ cảnh báo thay vì chặn hẳn, tránh trường hợp nhân viên không chấm công được rồi phải gọi điện cho bạn.</li>
+      <li><b>Không phải thời gian thực tuyệt đối.</b> Màn hình "đang trong ca" hỏi lại máy chủ mỗi 25 giây. Với quán cà phê thì thừa nhanh.</li>
+      <li><b>GPS sai số 10–50m</b> tuỳ máy và vị trí. Đừng đặt bán kính dưới 100m, kẻo nhân viên đứng ngay trong quán vẫn bị báo ngoài vùng. Trong nhà tín hiệu yếu thì nên để chế độ cảnh báo thay vì chặn hẳn.</li>
+      <li><b>Chưa có chụp ảnh khi chấm công.</b> Service account không có dung lượng Drive riêng nên tính năng này tạm bỏ. Cần thì gắn thêm kho lưu ảnh sau.</li>
+      <li><b>Nhớ dọn dữ liệu mỗi năm.</b> Sheet <code>KiemKho</code> và <code>NhatKy</code> phình nhanh nhất. Khi <code>ChamCong</code> vượt khoảng 20.000 dòng, nên cắt dữ liệu năm cũ sang file lưu trữ riêng.</li>
     </ul>
   </section>
 
-  <footer>Hệ thống chấm công quán cà phê · Google Apps Script + Google Sheets</footer>
+  <footer>Hệ thống chấm công quán cà phê · Vercel + Google Sheets</footer>
 </div>
 
 <script>
