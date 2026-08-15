@@ -79,15 +79,15 @@ setNow('2026-08-15T03:00:00Z');
 
 must(tkQL, 'ql.luuCaiDat', { caiDat: {
   latQuan: '10.762622', lngQuan: '106.660172', banKinhChamCong: '150',
-  chanNgoaiVung: 'FALSE', phutTreChoPhep: '5', phatTrePhut: '2000',
-  luongGioMacDinh: '25000', phuCapCaMacDinh: '20000', nguongPhutTinhPhuCap: '240', lamTronPhut: '0',
+  chanNgoaiVung: 'FALSE', phutTreChoPhep: '5',
+  luongGioMacDinh: '25000', phuCapCaMacDinh: '0', nguongPhutTinhPhuCap: '240', lamTronPhut: '0',
   thoiGianPhienDangNhap: '999999'   // test nhảy nhiều ngày, không muốn phiên hết hạn giữa chừng
 }});
 // cấp lại token với thời hạn dài
 tkQL = must(null, 'login', { maNV: 'QL001', pin: '246813' }).token;
 tkNV = must(null, 'login', { maNV: 'NV001', pin: '778899' }).token;
 ok('lưu và đọc lại được toạ độ quán', run("getCfg_('latQuan','')") === '10.762622');
-ok('không tạo dòng cài đặt trùng', run('readAll_(SHEETS.CAIDAT).length') === 18,
+ok('không tạo dòng cài đặt trùng', run('readAll_(SHEETS.CAIDAT).length') === 17,
    run('readAll_(SHEETS.CAIDAT).length'));
 
 /* ============ 4. Chấm công ============ */
@@ -135,7 +135,7 @@ must(tkQL, 'ql.luuCaiDat', { caiDat: { chanNgoaiVung: 'FALSE' } });
 /* ============ 5. Ca qua đêm ============ */
 nhom('5. Ca qua đêm');
 must(tkQL, 'ql.luuCa', { maCa: 'CAD', tenCa: 'Ca đêm', gioBatDau: '22:00', gioKetThuc: '02:00',
-                         soPhutNghi: 0, heSoLuong: 1.5, trangThai: 'HoatDong' });
+                         soPhutNghi: 0, trangThai: 'HoatDong' });
 setNow('2026-08-18T15:00:00Z');            // 22:00 VN ngày 18
 must(tkNV, 'cc.vao', { maCa: 'CAD', lat: 10.762622, lng: 106.660172 });
 setNow('2026-08-18T19:00:00Z');            // 02:00 VN ngày 19
@@ -176,32 +176,40 @@ must(tkNV, 'cc.ra', { lat: 10.762622, lng: 106.660172 });
 /* ============ 7. Lương ============ */
 nhom('7. Tính lương');
 must(tkQL, 'ql.luuNhanVien', { maNV: 'NV001', hoTen: 'Nhân viên mẫu', chucVu: 'NhanVien',
-  luongTheoGio: 30000, phuCapCa: 20000, ngayVaoLam: '2026-01-01', trangThai: 'DangLam' });
+  luongTheoGio: 30000, phuCapCa: 0, ngayVaoLam: '2026-01-01', trangThai: 'DangLam' });
 
 let bl = must(tkQL, 'ql.bangLuong', { thang: '2026-08', maNV: 'NV001' });
 let L = bl.danhSach[0];
-/* Các ca trong tháng của NV001 (lương giờ 30.000, phụ cấp 20.000/ca):
-   17/8 CA1 07:10–12:05 = 295' hệ số 1   -> 147.500   trễ 70'
-   17/8 CA2 12:10–18:05 = 355' hệ số 1   -> 177.500   trễ 10'
-   18/8 CAD 22:00–02:00 = 240' hệ số 1.5 -> 180.000   trễ  0'
-   25/8 CA1 07:00–12:00 = 300' hệ số 1   -> 150.000   trễ 60'
-                                  lương ca = 655.000
-   Phụ cấp: cả 4 ca đều >= 240'         =  80.000
-   Phạt trễ (bỏ qua 5' đầu, 2.000đ/phút):
-     (70-5 + 10-5 + 60-5) * 2.000       = 250.000
-   Thực nhận = 655.000 + 80.000 - 250.000 = 485.000                     */
+/* Mọi ca tính như nhau: giờ × lương/giờ. Không hệ số, không phạt trễ.
+   NV001 lương 30.000đ/giờ:
+   17/8 CA1 07:10–12:05 = 295' -> 147.500   (trễ 70')
+   17/8 CA2 12:10–18:05 = 355' -> 177.500   (trễ 10')
+   18/8 CAD 22:00–02:00 = 240' -> 120.000   (trễ  0')
+   25/8 CA1 07:00–12:00 = 300' -> 150.000   (trễ 60')
+                    lương ca   = 595.000
+   Thực nhận = 595.000 (không trừ gì cả)                                */
 ok('đếm đúng 4 ca', L.soCa === 4, L.soCa);
 ok('tổng phút công = 1190', L.tongPhutLam === 1190, L.tongPhutLam);
-ok('lương ca = 655.000', L.luongCa === 655000, L.luongCa);
-ok('phụ cấp = 80.000', L.phuCap === 80000, L.phuCap);
-ok('phạt trễ = 250.000', L.phatTre === 250000, L.phatTre);
-ok('thực nhận = 485.000', L.thucNhan === 485000, L.thucNhan);
-ok('hệ số ca đêm được áp dụng', L.chiTiet.find(c => c.maCa === 'CAD').tienCa === 180000);
+ok('lương ca = 595.000', L.luongCa === 595000, L.luongCa);
+ok('ca đêm KHÔNG được nhân hệ số', L.chiTiet.find(c => c.maCa === 'CAD').tienCa === 120000,
+   L.chiTiet.find(c => c.maCa === 'CAD').tienCa);
+ok('không có phụ cấp khi để 0', L.phuCap === 0, L.phuCap);
+ok('đi trễ KHÔNG bị trừ lương', L.thucNhan === 595000, L.thucNhan);
+ok('vẫn thống kê 3 lần đi trễ cho quản lý xem', L.soLanTre === 3, L.soLanTre);
+ok('không còn trường phạt trễ', L.phatTre === undefined, L.phatTre);
+
+// phụ cấp là tuỳ chọn — bật lên thì vẫn cộng đúng
+must(tkQL, 'ql.luuNhanVien', { maNV: 'NV001', hoTen: 'Nhân viên mẫu', chucVu: 'NhanVien',
+  luongTheoGio: 30000, phuCapCa: 20000, ngayVaoLam: '2026-01-01', trangThai: 'DangLam' });
+L = must(tkQL, 'ql.bangLuong', { thang: '2026-08', maNV: 'NV001' }).danhSach[0];
+ok('bật phụ cấp thì cộng 20.000 × 4 ca', L.phuCap === 80000 && L.thucNhan === 675000, [L.phuCap, L.thucNhan]);
+must(tkQL, 'ql.luuNhanVien', { maNV: 'NV001', hoTen: 'Nhân viên mẫu', chucVu: 'NhanVien',
+  luongTheoGio: 30000, phuCapCa: 0, ngayVaoLam: '2026-01-01', trangThai: 'DangLam' });
 
 must(tkQL, 'ql.luuThuongPhat', { maNV: 'NV001', thang: '2026-08', loai: 'Thuong', soTien: 200000, lyDo: 'Chăm chỉ' });
 must(tkQL, 'ql.luuThuongPhat', { maNV: 'NV001', thang: '2026-08', loai: 'Phat', soTien: 50000, lyDo: 'Làm vỡ ly' });
 L = must(tkQL, 'ql.bangLuong', { thang: '2026-08', maNV: 'NV001' }).danhSach[0];
-ok('cộng thưởng, trừ phạt đúng', L.thucNhan === 485000 + 200000 - 50000, L.thucNhan);
+ok('cộng thưởng, trừ phạt đúng', L.thucNhan === 595000 + 200000 - 50000, L.thucNhan);
 
 let ml = must(tkNV, 'luong.cuaToi', { thang: '2026-08' });
 ok('nhân viên xem được lương của chính mình', ml.luong.thucNhan === L.thucNhan);

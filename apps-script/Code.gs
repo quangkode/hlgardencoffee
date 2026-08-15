@@ -160,7 +160,6 @@ function mapCa_() {
       phutBatDau: bd,
       phutKetThuc: kt,
       soPhutNghi: num_(r.soPhutNghi),
-      heSoLuong: num_(r.heSoLuong) || 1,
       trangThai: String(r.trangThai || 'HoatDong').trim(),
       _row: r._row
     };

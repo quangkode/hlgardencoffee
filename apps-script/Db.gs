@@ -26,7 +26,7 @@ const HEADERS = {
     'ngayVaoLam', 'trangThai', 'pinHash', 'pinSalt', 'doiPinLanDau', 'ghiChu'
   ],
   [SHEETS.CA]: [
-    'maCa', 'tenCa', 'gioBatDau', 'gioKetThuc', 'soPhutNghi', 'heSoLuong', 'trangThai', 'ghiChu'
+    'maCa', 'tenCa', 'gioBatDau', 'gioKetThuc', 'soPhutNghi', 'trangThai', 'ghiChu'
   ],
   [SHEETS.LICH]: [
     'id', 'maNV', 'hoTen', 'ngay', 'maCa', 'trangThai', 'ghiChuNV', 'ghiChuQL',
@@ -56,7 +56,7 @@ const HEADERS = {
   ],
   [SHEETS.BANGLUONG]: [
     'id', 'thang', 'maNV', 'hoTen', 'soCa', 'tongPhutLam', 'tongGio', 'luongTheoGio',
-    'luongCa', 'phuCap', 'thuong', 'phat', 'phatTre', 'thucNhan',
+    'luongCa', 'phuCap', 'thuong', 'phat', 'soLanTre', 'thucNhan',
     'trangThai', 'nguoiChot', 'thoiGianChot'
   ],
   [SHEETS.CAIDAT]: ['key', 'value', 'moTa'],

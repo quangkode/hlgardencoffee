@@ -57,11 +57,25 @@ tick **"Show appsscript.json manifest file"** → quay lại tab Editor, mở `a
 và dán nội dung từ [apps-script/appsscript.json](apps-script/appsscript.json).
 
 ### Bước 4 — Khởi tạo dữ liệu
-1. Ở thanh trên, chọn hàm **`khoiTaoHeThong`** rồi bấm **Run**.
-2. Google sẽ hỏi cấp quyền → **Review permissions** → chọn tài khoản của bạn →
+
+`khoiTaoHeThong` **không phải nút bấm** — nó là một hàm nằm trong file `Setup.gs`.
+Chạy nó như sau:
+
+1. Bấm **Ctrl + S** để lưu. Chưa lưu thì Apps Script chưa "thấy" code mới.
+2. Ở cột **Files** bên trái, **bấm vào file `Setup.gs`**.
+   > ⚠️ **Đây là chỗ hay bị kẹt nhất.** Ô chọn hàm chỉ liệt kê các hàm của **file đang mở**.
+   > Nếu bạn đang mở `Code.gs` thì sẽ không bao giờ thấy `khoiTaoHeThong` trong danh sách.
+3. Nhìn thanh công cụ ngay **phía trên khung code**, có dãy: `▷ Run`  `🐞 Debug`  `[ô chọn hàm ▾]`  `Execution log`.
+   Mở ô chọn hàm đó và chọn **`khoiTaoHeThong`**.
+4. Bấm **▷ Run**.
+5. Google hỏi cấp quyền → **Review permissions** → chọn tài khoản của bạn →
    màn hình "Google hasn't verified this app" → **Advanced** → **Go to … (unsafe)** → **Allow**.
-   *(Đây là app do chính bạn viết chạy trên tài khoản của bạn, nên an toàn.)*
-3. Chạy xong, quay lại file Sheets sẽ thấy đủ 11 sheet và dữ liệu mẫu.
+   *(Đây là code của chính bạn chạy trên tài khoản của bạn, không gửi đi đâu cả.)*
+6. Xem khung **Execution log** phía dưới — hiện `Execution completed` là xong.
+   Quay lại file Sheets, bấm F5, sẽ thấy đủ 11 sheet và dữ liệu mẫu.
+
+**Vẫn không thấy tên hàm trong danh sách?** Nghĩa là file `Setup.gs` chưa được dán code,
+hoặc code bị lỗi cú pháp (Apps Script sẽ gạch đỏ). Kiểm tra lại Bước 3.
 
 ### Bước 5 — Xuất bản web app
 1. Bấm **Deploy → New deployment**.
@@ -124,24 +138,28 @@ Sau đó app hiện như một ứng dụng thật trên điện thoại.
 
 ## 4. Công thức tính lương
 
-Với mỗi ca đã hoàn thành:
+Đơn giản: **ca nào cũng như ca nào**, cứ giờ công nhân lương giờ.
 
 ```
-tiền ca = (số phút làm ÷ 60) × lương/giờ × hệ số ca
-phụ cấp = phụ cấp ca      (nếu làm ≥ ngưỡng phút, mặc định 240 phút)
-phạt trễ = (số phút trễ − số phút được bỏ qua) × mức phạt mỗi phút
+tiền ca = (số phút làm ÷ 60) × lương/giờ
 ```
 
 Cả tháng:
 
 ```
-THỰC NHẬN = Σ tiền ca + Σ phụ cấp + thưởng − phạt − phạt trễ
+THỰC NHẬN = Σ tiền ca + thưởng − phạt
 ```
 
-- **Hệ số ca** đặt riêng cho từng ca (ví dụ ca tối ×1.2, ca đêm ×1.5).
-- **Số phút nghỉ giữa ca** được trừ ra khỏi công.
-- **Thưởng / phạt** quản lý nhập tay theo tháng, có ghi lý do.
+Với lương mặc định 25.000đ/giờ: làm 6 tiếng được 150.000đ, bất kể ca sáng hay ca đêm.
+
+- **Không có hệ số ca**, **không phạt tiền khi đi trễ**. Số phút đi trễ vẫn được ghi
+  lại và hiện cho quản lý theo dõi, nhưng không trừ vào lương.
+- **Số phút nghỉ giữa ca** được trừ ra khỏi giờ công.
+- **Thưởng / phạt** quản lý nhập tay theo tháng, có ghi lý do — đây là cách duy nhất
+  tiền bị cộng/trừ ngoài giờ công.
 - **Ca qua đêm** (giờ kết thúc < giờ bắt đầu) được tính đúng, ghi vào ngày bắt đầu ca.
+- **Phụ cấp ca** mặc định tắt (= 0). Nếu sau này muốn thưởng thêm mỗi ca đủ giờ,
+  bật trong *Cài đặt quán* hoặc đặt riêng cho từng nhân viên.
 
 ---
 

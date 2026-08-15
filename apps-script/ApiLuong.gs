@@ -1,12 +1,14 @@
 /*******************************************************
  * ApiLuong.gs — Tính lương từ dữ liệu chấm công
  *
- * Công thức 1 ca:
- *   tienCa   = (soPhutLam / 60) * luongTheoGio * heSoCa
- *   phuCap   = phuCapCa nếu soPhutLam >= nguongPhutTinhPhuCap
- *   phatTre  = max(0, soPhutTre - phutTreChoPhep) * phatTrePhut
+ * Công thức 1 ca — mọi ca tính như nhau, không hệ số, không phạt trễ:
+ *   tienCa   = (soPhutLam / 60) * luongTheoGio
+ *   phuCap   = phuCapCa nếu soPhutLam >= nguongPhutTinhPhuCap (mặc định phuCapCa = 0)
  * Cộng thêm Thưởng/Phạt thủ công quản lý nhập trong tháng.
- *   thucNhan = luongCa + phuCap + thuong - phat - phatTre
+ *   thucNhan = luongCa + phuCap + thuong - phat
+ *
+ * Số phút đi trễ vẫn được ghi lại và hiển thị cho quản lý theo dõi,
+ * nhưng KHÔNG bị trừ vào lương.
  *******************************************************/
 
 function tinhLuongThang_(thang, chiMaNV) {
@@ -17,7 +19,6 @@ function tinhLuongThang_(thang, chiMaNV) {
   const phuCapMD = getCfgNum_('phuCapCaMacDinh', 0);
   const nguong = getCfgNum_('nguongPhutTinhPhuCap', 240);
   const treChoPhep = getCfgNum_('phutTreChoPhep', 5);
-  const phatPhut = getCfgNum_('phatTrePhut', 0);
   const loc = chiMaNV ? String(chiMaNV).trim().toUpperCase() : '';
 
   const kq = {};
@@ -32,7 +33,7 @@ function tinhLuongThang_(thang, chiMaNV) {
         luongTheoGio: nv ? (num_(nv.luongTheoGio) || luongGioMD) : luongGioMD,
         phuCapCa: nv ? (num_(nv.phuCapCa) || phuCapMD) : phuCapMD,
         soCa: 0, tongPhutLam: 0, tongPhutTre: 0, soLanTre: 0, soCaThieuGio: 0,
-        luongCa: 0, phuCap: 0, phatTre: 0, thuong: 0, phat: 0,
+        luongCa: 0, phuCap: 0, thuong: 0, phat: 0,
         chiTiet: [], thuongPhat: []
       };
     }
@@ -48,33 +49,29 @@ function tinhLuongThang_(thang, chiMaNV) {
 
     const s = slot(ma);
     const ca = dsCa[String(r.maCa).trim().toUpperCase()];
-    const heSo = ca ? ca.heSoLuong : 1;
     const phut = num_(r.soPhutLam);
     const tre = num_(r.soPhutTre);
 
-    const tienCa = Math.round((phut / 60) * s.luongTheoGio * heSo);
+    const tienCa = Math.round((phut / 60) * s.luongTheoGio);
     const duPhuCap = phut >= nguong;
     const pc = duPhuCap ? s.phuCapCa : 0;
-    const treTinhPhat = Math.max(0, tre - treChoPhep);
-    const pt = Math.round(treTinhPhat * phatPhut);
 
     s.soCa++;
     s.tongPhutLam += phut;
     s.tongPhutTre += tre;
-    if (treTinhPhat > 0) s.soLanTre++;
+    if (tre > treChoPhep) s.soLanTre++;   // chỉ để thống kê, không trừ tiền
     if (!duPhuCap) s.soCaThieuGio++;
     s.luongCa += tienCa;
     s.phuCap += pc;
-    s.phatTre += pt;
 
     s.chiTiet.push({
       ngay: dstr_(r.ngay), maCa: String(r.maCa || ''),
       tenCa: ca ? ca.tenCa : String(r.maCa || ''),
       gioVao: tstr_(r.gioVao), gioRa: tstr_(r.gioRa),
       soPhutLam: phut, gio: Math.round(phut / 6) / 10,
-      heSo: heSo, soPhutTre: tre,
-      tienCa: tienCa, phuCap: pc, phatTre: pt,
-      thanhTien: tienCa + pc - pt
+      soPhutTre: tre,
+      tienCa: tienCa, phuCap: pc,
+      thanhTien: tienCa + pc
     });
   });
 
@@ -111,7 +108,7 @@ function tinhLuongThang_(thang, chiMaNV) {
   const ds = Object.keys(kq).map(ma => {
     const s = kq[ma];
     s.tongGio = Math.round(s.tongPhutLam / 6) / 10;
-    s.thucNhan = Math.round(s.luongCa + s.phuCap + s.thuong - s.phat - s.phatTre);
+    s.thucNhan = Math.round(s.luongCa + s.phuCap + s.thuong - s.phat);
     s.daChot = daChot[ma] || '';
     s.chiTiet.sort((a, b) => a.ngay.localeCompare(b.ngay) || a.gioVao.localeCompare(b.gioVao));
     return s;
@@ -131,8 +128,7 @@ function luongCuaToi_(nv, p) {
       luongTheoGio: me ? me.luongTheoGio : 0,
       phuCapCa: me ? me.phuCapCa : 0,
       nguongPhutTinhPhuCap: getCfgNum_('nguongPhutTinhPhuCap', 240),
-      phutTreChoPhep: getCfgNum_('phutTreChoPhep', 5),
-      phatTrePhut: getCfgNum_('phatTrePhut', 0)
+      phutTreChoPhep: getCfgNum_('phutTreChoPhep', 5)
     }
   };
 }

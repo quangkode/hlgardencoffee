@@ -14,8 +14,7 @@ function caDanhSach_() {
   return Object.keys(m).map(k => ({
     maCa: m[k].maCa, tenCa: m[k].tenCa,
     gioBatDau: m[k].gioBatDau, gioKetThuc: m[k].gioKetThuc,
-    soPhutNghi: m[k].soPhutNghi, heSoLuong: m[k].heSoLuong,
-    trangThai: m[k].trangThai
+    soPhutNghi: m[k].soPhutNghi, trangThai: m[k].trangThai
   })).filter(c => c.trangThai === 'HoatDong');
 }
 

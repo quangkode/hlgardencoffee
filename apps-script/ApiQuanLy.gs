@@ -398,7 +398,7 @@ function qlLuuCa_(nv, p) {
   const obj = {
     maCa: ma, tenCa: String(p.tenCa || ma).trim(),
     gioBatDau: tstr_(p.gioBatDau), gioKetThuc: tstr_(p.gioKetThuc),
-    soPhutNghi: num_(p.soPhutNghi), heSoLuong: num_(p.heSoLuong) || 1,
+    soPhutNghi: num_(p.soPhutNghi),
     trangThai: String(p.trangThai || 'HoatDong').trim(), ghiChu: String(p.ghiChu || '')
   };
   const cu = findBy_(SHEETS.CA, 'maCa', ma);
@@ -414,7 +414,7 @@ function qlBangLuong_(nv, p) {
   const tong = { soNV: r.danhSach.length, tongGio: 0, tongLuong: 0, tongThuong: 0, tongPhat: 0, soCa: 0 };
   r.danhSach.forEach(x => {
     tong.tongGio += x.tongGio; tong.tongLuong += x.thucNhan;
-    tong.tongThuong += x.thuong; tong.tongPhat += x.phat + x.phatTre; tong.soCa += x.soCa;
+    tong.tongThuong += x.thuong; tong.tongPhat += x.phat; tong.soCa += x.soCa;
   });
   tong.tongGio = Math.round(tong.tongGio * 10) / 10;
   r.tong = tong;
@@ -437,7 +437,7 @@ function qlChotLuong_(nv, p) {
       id: uid_('BL'), thang: k.thang, maNV: x.maNV, hoTen: x.hoTen,
       soCa: x.soCa, tongPhutLam: x.tongPhutLam, tongGio: x.tongGio,
       luongTheoGio: x.luongTheoGio, luongCa: x.luongCa, phuCap: x.phuCap,
-      thuong: x.thuong, phat: x.phat, phatTre: x.phatTre, thucNhan: x.thucNhan,
+      thuong: x.thuong, phat: x.phat, soLanTre: x.soLanTre, thucNhan: x.thucNhan,
       trangThai: 'DaChot', nguoiChot: nv.maNV, thoiGianChot: stamp
     }));
     appendMany_(SHEETS.BANGLUONG, rows);
@@ -585,7 +585,7 @@ function qlDocCaiDat_(nv) {
   return { caiDat: rows, linkSheet: ss_().getUrl(), dsCa: readAll_(SHEETS.CA).map(r => ({
     maCa: String(r.maCa).trim(), tenCa: String(r.tenCa || ''),
     gioBatDau: tstr_(r.gioBatDau), gioKetThuc: tstr_(r.gioKetThuc),
-    soPhutNghi: num_(r.soPhutNghi), heSoLuong: num_(r.heSoLuong) || 1,
+    soPhutNghi: num_(r.soPhutNghi),
     trangThai: String(r.trangThai || 'HoatDong').trim(), ghiChu: String(r.ghiChu || '')
   })) };
 }

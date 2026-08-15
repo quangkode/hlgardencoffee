@@ -279,19 +279,19 @@ function chiTietLuong(maNV){
       title: '💰 ' + x.hoTen + ' · ' + thangVN(thang),
       body:
         '<div class="card tight">' +
-          dongTien('Lương ca (' + x.soCa + ' ca · ' + x.tongGio + 'h)', x.luongCa) +
-          dongTien('Phụ cấp ca', x.phuCap) +
+          dongTien(x.tongGio + ' giờ × ' + tien(x.luongTheoGio) + '/giờ (' + x.soCa + ' ca)', x.luongCa) +
+          (x.phuCap ? dongTien('Phụ cấp ca', x.phuCap) : '') +
           (x.thuong ? dongTien('Thưởng', x.thuong, 'ok') : '') +
           (x.phat ? dongTien('Phạt', -x.phat, 'err') : '') +
-          (x.phatTre ? dongTien('Phạt trễ (' + x.soLanTre + ' lần)', -x.phatTre, 'err') : '') +
           '<hr class="sep">' + dongTien('<b>Thực nhận</b>', x.thucNhan, 'brand') +
+          (x.soLanTre ? '<div class="xs muted mt">Đi trễ ' + x.soLanTre + ' lần (không trừ lương)</div>' : '') +
         '</div>' +
         '<div class="sec-title">Chi tiết từng ca</div>' +
         '<div class="card tight"><div class="scrollx"><table class="tbl">' +
         '<tr><th>Ngày</th><th>Ca</th><th>Giờ</th><th class="right">Tiền</th></tr>' +
         x.chiTiet.map(function(c){
           return '<tr><td class="nowrap">' + h(ngayNgan(c.ngay)) + '</td>' +
-            '<td>' + h(c.maCa) + (c.heSo !== 1 ? ' <span class="xs muted">x' + c.heSo + '</span>' : '') + '</td>' +
+            '<td>' + h(c.maCa) + '</td>' +
             '<td class="nowrap">' + h(c.gioVao) + '-' + h(c.gioRa) + '<br><span class="xs muted">' + c.gio + 'h' +
             (c.soPhutTre > 0 ? ' · trễ ' + c.soPhutTre + "'" : '') + '</span></td>' +
             '<td class="right nowrap">' + tien(c.thanhTien) + '</td></tr>';
@@ -700,10 +700,9 @@ var NHAN_CAI_DAT = {
   batBuocViTri:          { l:'Bắt buộc bật GPS khi chấm công', t:'checkbox' },
   chanNgoaiVung:         { l:'Chặn hẳn nếu đứng ngoài bán kính', t:'checkbox', hint:'Tắt = vẫn cho chấm nhưng gắn cờ đỏ để bạn xem' },
   yeuCauAnh:             { l:'Bắt chụp ảnh khi chấm công', t:'checkbox', hint:'Ảnh lưu vào Google Drive của bạn' },
-  phutTreChoPhep:        { l:'Số phút trễ được bỏ qua', t:'number' },
-  phatTrePhut:           { l:'Phạt mỗi phút trễ (đồng)', t:'number' },
+  phutTreChoPhep:        { l:'Trễ quá bao nhiêu phút thì hiện cảnh báo', t:'number', hint:'Chỉ để bạn theo dõi, không trừ tiền lương' },
   luongGioMacDinh:       { l:'Lương/giờ mặc định (đồng)', t:'number' },
-  phuCapCaMacDinh:       { l:'Phụ cấp ca mặc định (đồng)', t:'number' },
+  phuCapCaMacDinh:       { l:'Phụ cấp thêm mỗi ca (đồng)', t:'number', hint:'Để 0 nếu chỉ trả lương theo giờ' },
   nguongPhutTinhPhuCap:  { l:'Số phút tối thiểu để được phụ cấp ca', t:'number' },
   lamTronPhut:           { l:'Làm tròn phút công theo bội số', t:'number', hint:'VD: 5 → 68 phút thành 70 phút. 0 = không làm tròn' },
   choPhepTuDangKyCa:     { l:'Cho nhân viên tự báo ca', t:'checkbox' },
@@ -740,8 +739,7 @@ VIEWS.q_cd = function(root){
           '<div class="grow"><div class="t1">' + h(c.tenCa) +
           (c.trangThai !== 'HoatDong' ? ' <span class="chip grey">tắt</span>' : '') + '</div>' +
           '<div class="t2">' + h(c.maCa) + ' · ' + h(c.gioBatDau) + '–' + h(c.gioKetThuc) +
-          (c.soPhutNghi ? ' · nghỉ ' + c.soPhutNghi + "'" : '') +
-          (c.heSoLuong !== 1 ? ' · hệ số x' + c.heSoLuong : '') + '</div></div>' +
+          (c.soPhutNghi ? ' · nghỉ ' + c.soPhutNghi + "'" : '') + '</div></div>' +
           '<span class="muted">&rsaquo;</span></div>';
       }).join('') + '</div>' +
       '<button class="btn ghost block mb" onclick="suaCa(null)">&#10133; Thêm ca làm việc</button>' +
@@ -769,7 +767,7 @@ VIEWS.q_cd = function(root){
 
 function suaCa(c){
   var moi = !c;
-  c = c || { maCa:'', tenCa:'', gioBatDau:'06:00', gioKetThuc:'12:00', soPhutNghi:0, heSoLuong:1, trangThai:'HoatDong', ghiChu:'' };
+  c = c || { maCa:'', tenCa:'', gioBatDau:'06:00', gioKetThuc:'12:00', soPhutNghi:0, trangThai:'HoatDong', ghiChu:'' };
   moSheet({
     title: moi ? '🕐 Thêm ca làm việc' : '🕐 ' + c.tenCa,
     body: fForm([
@@ -778,7 +776,6 @@ function suaCa(c){
       { k:'gioBatDau', label:'Giờ bắt đầu', type:'time', value:c.gioBatDau },
       { k:'gioKetThuc', label:'Giờ kết thúc', type:'time', value:c.gioKetThuc, hint:'Nhỏ hơn giờ bắt đầu = ca qua đêm' },
       { k:'soPhutNghi', label:'Số phút nghỉ giữa ca (trừ khỏi công)', type:'number', value:c.soPhutNghi },
-      { k:'heSoLuong', label:'Hệ số lương', type:'number', value:c.heSoLuong, hint:'1 = bình thường, 1.2 = ca tối +20%' },
       { k:'trangThai', label:'Trạng thái', type:'select', value:c.trangThai,
         options:[{ v:'HoatDong', t:'Đang dùng' }, { v:'Tat', t:'Tạm tắt' }] },
       { k:'ghiChu', label:'Ghi chú', type:'text', value:c.ghiChu }

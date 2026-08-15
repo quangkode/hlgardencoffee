@@ -421,7 +421,7 @@ VIEWS.toi = function(root, tham){
   return Promise.all([api('luong.cuaToi', { thang: thang }), api('cc.lichSu', { thang: thang })])
     .then(function(r){
       var L = r[0].luong, ct = r[1].danhSach;
-      if (!L) L = { tongGio:0, soCa:0, luongCa:0, phuCap:0, thuong:0, phat:0, phatTre:0, thucNhan:0,
+      if (!L) L = { tongGio:0, soCa:0, luongCa:0, phuCap:0, thuong:0, phat:0, thucNhan:0,
                     soLanTre:0, luongTheoGio:0, thuongPhat:[], daChot:'' };
 
       root.innerHTML =
@@ -440,13 +440,14 @@ VIEWS.toi = function(root, tham){
         '</div>' +
 
         '<div class="card"><h3>Bảng tính chi tiết</h3>' +
-          dongTien('Lương theo giờ (' + L.soCa + ' ca)', L.luongCa) +
-          dongTien('Phụ cấp ca', L.phuCap) +
+          dongTien(L.tongGio + ' giờ × ' + tien(L.luongTheoGio) + '/giờ (' + L.soCa + ' ca)', L.luongCa) +
+          (L.phuCap ? dongTien('Phụ cấp ca', L.phuCap) : '') +
           (L.thuong ? dongTien('Thưởng', L.thuong, 'ok') : '') +
           (L.phat ? dongTien('Phạt', -L.phat, 'err') : '') +
-          (L.phatTre ? dongTien('Phạt đi trễ (' + L.soLanTre + ' lần)', -L.phatTre, 'err') : '') +
           '<hr class="sep">' +
           dongTien('<b>Thực nhận</b>', L.thucNhan, 'brand') +
+          (L.soLanTre ? '<div class="xs muted mt">Tháng này bạn đi trễ ' + L.soLanTre +
+            ' lần — không bị trừ tiền, nhưng quản lý có xem.</div>' : '') +
         '</div>' +
 
         (L.thuongPhat && L.thuongPhat.length

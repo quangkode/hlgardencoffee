@@ -345,13 +345,18 @@ footer{
       <div class="gut"><span class="n">04</span><input type="checkbox" class="tick" aria-label="Xong bước 4"></div>
       <div class="bd">
         <h3>Khởi tạo dữ liệu</h3>
+        <p><code>khoiTaoHeThong</code> <b>không phải một nút bấm</b> — nó là hàm nằm trong file <code>Setup.gs</code>. Chạy nó như sau:</p>
         <ol>
-          <li>Ở thanh trên chọn hàm <code>khoiTaoHeThong</code> → bấm <b>Run</b>.</li>
+          <li>Bấm <kbd>Ctrl</kbd> + <kbd>S</kbd> để lưu. Chưa lưu thì Apps Script chưa thấy code mới.</li>
+          <li>Ở cột <b>Files</b> bên trái, <b>bấm vào file <code>Setup.gs</code></b>.</li>
+          <li>Nhìn thanh công cụ ngay trên khung code — dãy <code>▷ Run</code> · <code>Debug</code> · <b>[ô chọn hàm ▾]</b> · <code>Execution log</code>. Mở ô chọn hàm, chọn <code>khoiTaoHeThong</code>.</li>
+          <li>Bấm <b>▷ Run</b>.</li>
           <li>Google hỏi cấp quyền → <b>Review permissions</b> → chọn tài khoản của bạn.</li>
           <li>Gặp màn hình <i>"Google hasn't verified this app"</i> → <b>Advanced</b> → <b>Go to … (unsafe)</b> → <b>Allow</b>.</li>
         </ol>
-        <div class="note">Cảnh báo đó là bình thường: đây là code của chính bạn, chạy trên tài khoản của bạn, không gửi dữ liệu đi đâu cả.</div>
-        <p>Chạy xong, quay lại file Sheets sẽ thấy đủ 11 sheet cùng dữ liệu mẫu.</p>
+        <div class="note warn"><b>Không thấy <code>khoiTaoHeThong</code> trong danh sách?</b> Đây là chỗ hay kẹt nhất: ô chọn hàm chỉ liệt kê các hàm của <b>file đang mở</b>. Đang mở <code>Code.gs</code> thì không bao giờ thấy nó — phải bấm sang <code>Setup.gs</code> trước. Nếu mở đúng file rồi mà vẫn không có, tức là file chưa được dán code hoặc code bị lỗi cú pháp.</div>
+        <div class="note">Cảnh báo "chưa xác minh" là bình thường: đây là code của chính bạn, chạy trên tài khoản của bạn, không gửi dữ liệu đi đâu cả.</div>
+        <p>Khung <b>Execution log</b> phía dưới hiện <i>Execution completed</i> là xong. Quay lại file Sheets bấm F5, sẽ thấy đủ 11 sheet cùng dữ liệu mẫu.</p>
       </div>
     </div>
 
@@ -438,17 +443,17 @@ footer{
   <section class="blk">
     <span class="eyebrow">Cách tính tiền</span>
     <h2>Công thức lương</h2>
-    <p>Với mỗi ca đã hoàn thành:</p>
-    <div class="formula">tiền ca  <span class="op">=</span> (số phút làm ÷ 60) × lương/giờ × hệ số ca
-phụ cấp  <span class="op">=</span> phụ cấp ca, nếu làm ≥ ngưỡng phút (mặc định 240)
-phạt trễ <span class="op">=</span> (số phút trễ − số phút bỏ qua) × mức phạt mỗi phút</div>
+    <p>Ca nào cũng như ca nào — cứ giờ công nhân lương giờ:</p>
+    <div class="formula">tiền ca <span class="op">=</span> (số phút làm ÷ 60) × lương/giờ</div>
     <p>Cộng cả tháng:</p>
-    <div class="formula"><span class="tot">THỰC NHẬN</span> <span class="op">=</span> Σ tiền ca <span class="op">+</span> Σ phụ cấp <span class="op">+</span> thưởng <span class="op">−</span> phạt <span class="op">−</span> phạt trễ</div>
+    <div class="formula"><span class="tot">THỰC NHẬN</span> <span class="op">=</span> Σ tiền ca <span class="op">+</span> thưởng <span class="op">−</span> phạt</div>
+    <p>Với mức mặc định 25.000đ/giờ: làm 6 tiếng được 150.000đ, ca sáng hay ca đêm đều vậy.</p>
     <ul class="limits" style="list-style:none">
-      <li style="border-top:1px solid var(--rule-2)"><b>Hệ số ca</b> đặt riêng từng ca — ví dụ ca tối ×1.2, ca đêm ×1.5.</li>
+      <li style="border-top:1px solid var(--rule-2)"><b>Không hệ số ca, không phạt tiền đi trễ.</b> Số phút trễ vẫn ghi lại cho quản lý xem, nhưng không trừ lương.</li>
       <li><b>Nghỉ giữa ca</b> được trừ khỏi giờ công.</li>
       <li><b>Ca qua đêm</b> tính đúng và ghi vào ngày bắt đầu ca.</li>
-      <li><b>Thưởng / phạt</b> quản lý nhập tay theo tháng, có ghi lý do.</li>
+      <li><b>Thưởng / phạt</b> quản lý nhập tay theo tháng — cách duy nhất tiền bị cộng trừ ngoài giờ công.</li>
+      <li><b>Phụ cấp ca</b> mặc định tắt. Muốn thưởng thêm mỗi ca đủ giờ thì bật trong Cài đặt quán.</li>
     </ul>
   </section>
 

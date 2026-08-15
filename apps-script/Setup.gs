@@ -11,11 +11,10 @@ const DEFAULT_SETTINGS = [
   ['batBuocViTri',       'TRUE',             'TRUE = bắt buộc bật GPS mới chấm công được'],
   ['chanNgoaiVung',      'FALSE',            'TRUE = chặn hẳn nếu đứng ngoài bán kính. FALSE = vẫn cho chấm nhưng gắn cờ đỏ để quản lý xem'],
   ['yeuCauAnh',          'FALSE',            'TRUE = bắt chụp ảnh selfie khi chấm công (ảnh lưu vào Google Drive)'],
-  ['phutTreChoPhep',     '5',                'Trễ trong bao nhiêu phút thì không bị phạt'],
-  ['phatTrePhut',        '2000',             'Số tiền phạt cho mỗi phút trễ vượt mức cho phép (đồng)'],
+  ['phutTreChoPhep',     '5',                'Trễ quá bao nhiêu phút thì mới hiện cảnh báo cho quản lý (không trừ tiền)'],
   ['luongGioMacDinh',    '25000',            'Lương/giờ mặc định khi nhân viên chưa được set riêng'],
-  ['phuCapCaMacDinh',    '20000',            'Phụ cấp mỗi ca làm đủ (đồng)'],
-  ['nguongPhutTinhPhuCap', '240',            'Làm tối thiểu bao nhiêu phút thì được tính phụ cấp ca'],
+  ['phuCapCaMacDinh',    '0',                'Phụ cấp thêm mỗi ca làm đủ (đồng). Để 0 = chỉ tính lương theo giờ'],
+  ['nguongPhutTinhPhuCap', '240',            'Làm tối thiểu bao nhiêu phút thì được tính phụ cấp ca (chỉ dùng khi có phụ cấp)'],
   ['lamTronPhut',        '5',                'Làm tròn số phút công lên/xuống theo bội số này (0 = không làm tròn)'],
   ['choPhepTuDangKyCa',  'TRUE',             'TRUE = nhân viên tự báo ca, quản lý duyệt'],
   ['hanBaoCaTruoc',      '1',                'Phải báo ca trước ít nhất bao nhiêu ngày'],
@@ -24,10 +23,10 @@ const DEFAULT_SETTINGS = [
 ];
 
 const DEFAULT_CA = [
-  ['CA1', 'Ca sáng',  '06:00', '12:00', 0,  1,   'HoatDong', ''],
-  ['CA2', 'Ca chiều', '12:00', '18:00', 0,  1,   'HoatDong', ''],
-  ['CA3', 'Ca tối',   '18:00', '23:00', 0,  1.2, 'HoatDong', 'Có hệ số ca tối'],
-  ['CAG', 'Ca gãy',   '09:00', '14:00', 30, 1,   'HoatDong', 'Ca linh hoạt, có nghỉ giữa ca 30 phút']
+  ['CA1', 'Ca sáng',  '06:00', '12:00', 0,  'HoatDong', ''],
+  ['CA2', 'Ca chiều', '12:00', '18:00', 0,  'HoatDong', ''],
+  ['CA3', 'Ca tối',   '18:00', '23:00', 0,  'HoatDong', ''],
+  ['CAG', 'Ca gãy',   '09:00', '14:00', 30, 'HoatDong', 'Ca linh hoạt, nghỉ giữa ca 30 phút']
 ];
 
 const DEFAULT_HANG = [
@@ -87,7 +86,7 @@ function khoiTaoHeThong() {
   if (readAll_(SHEETS.CA).length === 0) {
     appendMany_(SHEETS.CA, DEFAULT_CA.map(r => ({
       maCa: r[0], tenCa: r[1], gioBatDau: r[2], gioKetThuc: r[3],
-      soPhutNghi: r[4], heSoLuong: r[5], trangThai: r[6], ghiChu: r[7]
+      soPhutNghi: r[4], trangThai: r[5], ghiChu: r[6]
     })));
   }
 
