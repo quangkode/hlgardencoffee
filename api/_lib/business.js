@@ -132,7 +132,6 @@ export function ccTrangThai_(nv) {
     maCa: String(mo.maCa || ''),
     tenCa: dsCa[String(mo.maCa).toUpperCase()]?.tenCa || '',
     gioVao: tstr_(mo.gioVao),
-    soPhutTre: num_(mo.soPhutTre),
     ngoaiVung: bool_(mo.ngoaiVung)
   } : null;
 
@@ -151,17 +150,16 @@ export function ccTrangThai_(nv) {
                  String(r.trangThai).trim() === 'HoanThanh')
     .map(r => ({
       maCa: String(r.maCa || ''), gioVao: tstr_(r.gioVao), gioRa: tstr_(r.gioRa),
-      soPhutLam: num_(r.soPhutLam), soPhutTre: num_(r.soPhutTre)
+      soPhutLam: num_(r.soPhutLam)
     }));
 
   const k = khoangThang_(thangHienTai_());
-  let phut = 0, soCa = 0, treCa = 0;
+  let phut = 0, soCa = 0;
   rows.forEach(r => {
     if (String(r.maNV).trim().toUpperCase() !== ma) return;
     if (String(r.trangThai).trim() !== 'HoanThanh') return;
     if (!trongKhoang_(r.ngay, k.tu, k.den)) return;
     phut += num_(r.soPhutLam); soCa++;
-    if (num_(r.soPhutTre) > getCfgNum_('phutTreChoPhep', 5)) treCa++;
   });
 
   return {
@@ -176,7 +174,7 @@ export function ccTrangThai_(nv) {
       .map(c => ({ maCa: c.maCa, tenCa: c.tenCa, gioBatDau: c.gioBatDau, gioKetThuc: c.gioKetThuc })),
     thongKeThang: {
       thang: k.thang, tongPhut: phut, tongGio: Math.round(phut / 6) / 10,
-      soCa, soLanTre: treCa
+      soCa
     }
   };
 }
@@ -221,7 +219,6 @@ export function ccVao_(nv, p) {
     if (trung) throw new Error('Hôm nay bạn đã hoàn thành ' + ca.tenCa + ' rồi.');
 
     const vt = kiemTraViTri_(p.lat, p.lng);
-    const tre = Math.max(0, lechPhut_(phutHienTai, ca.phutBatDau % 1440));
     const ngoaiLich = !lich.some(r => String(r.maCa).trim().toUpperCase() === maCa);
 
     appendObj_(SHEETS.CHAMCONG, {
@@ -229,7 +226,7 @@ export function ccVao_(nv, p) {
       maNV: nv.maNV, hoTen: nv.hoTen,
       ngay: homNay, maCa,
       gioVao: gio, gioRa: '',
-      soPhutLam: '', soPhutTre: tre, soPhutVeSom: '',
+      soPhutLam: '', soPhutVeSom: '',
       trangThai: 'DangLam',
       viTriVao: vt.viTri, khoangCachVao: vt.khoangCach,
       viTriRa: '', khoangCachRa: '',
@@ -238,11 +235,10 @@ export function ccVao_(nv, p) {
       anhVao: '', anhRa: '',
       ghiChu: String(p.ghiChu || ''), nguoiSua: '', thoiGianSua: ''
     });
-    ghiNhatKy_(nv, 'ChamCongVao', maCa + ' lúc ' + gio + (tre > 0 ? ' (trễ ' + tre + "')" : ''));
+    ghiNhatKy_(nv, 'ChamCongVao', maCa + ' lúc ' + gio);
 
     return {
-      thongBao: 'Đã chấm công vào ' + ca.tenCa + ' lúc ' + gio +
-                (tre > getCfgNum_('phutTreChoPhep', 5) ? ' — trễ ' + tre + ' phút' : ''),
+      thongBao: 'Đã chấm công vào ' + ca.tenCa + ' lúc ' + gio,
       trangThai: ccTrangThai_(nv)
     };
   });
@@ -304,7 +300,7 @@ export function ccLichSu_(nv, p) {
         id: r.id, ngay: dstr_(r.ngay), maCa: String(r.maCa || ''),
         tenCa: c ? c.tenCa : String(r.maCa || ''),
         gioVao: tstr_(r.gioVao), gioRa: tstr_(r.gioRa),
-        soPhutLam: num_(r.soPhutLam), soPhutTre: num_(r.soPhutTre), soPhutVeSom: num_(r.soPhutVeSom),
+        soPhutLam: num_(r.soPhutLam), soPhutVeSom: num_(r.soPhutVeSom),
         trangThai: String(r.trangThai || ''), ngoaiVung: bool_(r.ngoaiVung),
         ngoaiLich: bool_(r.ngoaiLich), ghiChu: String(r.ghiChu || ''),
         daSua: !!String(r.nguoiSua || '')
@@ -675,7 +671,6 @@ export function gcXacNhan_(nv, p) {
 
 /* ================= LƯƠNG =================
  * Mọi ca tính như nhau: giờ công × lương/giờ. Không hệ số, không phạt trễ.
- * Số phút trễ vẫn thống kê để quản lý theo dõi, nhưng không trừ tiền.
  */
 
 export function tinhLuongThang_(thang, chiMaNV) {
@@ -685,7 +680,6 @@ export function tinhLuongThang_(thang, chiMaNV) {
   const luongGioMD = getCfgNum_('luongGioMacDinh', 25000);
   const phuCapMD = getCfgNum_('phuCapCaMacDinh', 0);
   const nguong = getCfgNum_('nguongPhutTinhPhuCap', 240);
-  const treChoPhep = getCfgNum_('phutTreChoPhep', 5);
   const loc = chiMaNV ? String(chiMaNV).trim().toUpperCase() : '';
 
   const kq = {};
@@ -699,7 +693,7 @@ export function tinhLuongThang_(thang, chiMaNV) {
         trangThaiNV: nv ? String(nv.trangThai || '') : 'KhongTonTai',
         luongTheoGio: nv ? (num_(nv.luongTheoGio) || luongGioMD) : luongGioMD,
         phuCapCa: nv ? (num_(nv.phuCapCa) || phuCapMD) : phuCapMD,
-        soCa: 0, tongPhutLam: 0, tongPhutTre: 0, soLanTre: 0, soCaThieuGio: 0,
+        soCa: 0, tongPhutLam: 0, soCaThieuGio: 0,
         luongCa: 0, phuCap: 0, thuong: 0, phat: 0,
         chiTiet: [], thuongPhat: []
       };
@@ -716,7 +710,6 @@ export function tinhLuongThang_(thang, chiMaNV) {
     const s = slot(ma);
     const ca = dsCa[String(r.maCa).trim().toUpperCase()];
     const phut = num_(r.soPhutLam);
-    const tre = num_(r.soPhutTre);
 
     const tienCa = Math.round((phut / 60) * s.luongTheoGio);
     const duPhuCap = phut >= nguong;
@@ -724,8 +717,6 @@ export function tinhLuongThang_(thang, chiMaNV) {
 
     s.soCa++;
     s.tongPhutLam += phut;
-    s.tongPhutTre += tre;
-    if (tre > treChoPhep) s.soLanTre++;
     if (!duPhuCap) s.soCaThieuGio++;
     s.luongCa += tienCa;
     s.phuCap += pc;
@@ -735,7 +726,7 @@ export function tinhLuongThang_(thang, chiMaNV) {
       tenCa: ca ? ca.tenCa : String(r.maCa || ''),
       gioVao: tstr_(r.gioVao), gioRa: tstr_(r.gioRa),
       soPhutLam: phut, gio: Math.round(phut / 6) / 10,
-      soPhutTre: tre, tienCa, phuCap: pc, thanhTien: tienCa + pc
+      tienCa, phuCap: pc, thanhTien: tienCa + pc
     });
   });
 
@@ -788,8 +779,7 @@ export function luongCuaToi_(nv, p) {
     congThuc: {
       luongTheoGio: me ? me.luongTheoGio : 0,
       phuCapCa: me ? me.phuCapCa : 0,
-      nguongPhutTinhPhuCap: getCfgNum_('nguongPhutTinhPhuCap', 240),
-      phutTreChoPhep: getCfgNum_('phutTreChoPhep', 5)
+      nguongPhutTinhPhuCap: getCfgNum_('nguongPhutTinhPhuCap', 240)
     }
   };
 }
@@ -802,7 +792,7 @@ export function qlTongQuan_(nv, p) {
   const dsCa = mapCa_();
   const cc = readAll_(SHEETS.CHAMCONG);
 
-  let dangLam = 0, caHomNay = 0, phutHomNay = 0, treHomNay = 0, ngoaiVung = 0, quenRa = 0;
+  let dangLam = 0, caHomNay = 0, phutHomNay = 0, ngoaiVung = 0, quenRa = 0;
   const danhSachHomNay = [];
 
   cc.forEach(r => {
@@ -814,14 +804,13 @@ export function qlTongQuan_(nv, p) {
     if (ngay !== homNay) return;
     caHomNay++;
     phutHomNay += num_(r.soPhutLam);
-    if (num_(r.soPhutTre) > getCfgNum_('phutTreChoPhep', 5)) treHomNay++;
     if (bool_(r.ngoaiVung)) ngoaiVung++;
     const c = dsCa[String(r.maCa).trim().toUpperCase()];
     danhSachHomNay.push({
       id: String(r.id), maNV: String(r.maNV), hoTen: String(r.hoTen || ''),
       maCa: String(r.maCa || ''), tenCa: c ? c.tenCa : String(r.maCa || ''),
       gioVao: tstr_(r.gioVao), gioRa: tstr_(r.gioRa),
-      soPhutLam: num_(r.soPhutLam), soPhutTre: num_(r.soPhutTre),
+      soPhutLam: num_(r.soPhutLam),
       trangThai: String(r.trangThai || ''), ngoaiVung: bool_(r.ngoaiVung),
       ngoaiLich: bool_(r.ngoaiLich), ghiChu: String(r.ghiChu || '')
     });
@@ -858,7 +847,7 @@ export function qlTongQuan_(nv, p) {
     soNhanVien: soNV,
     dangLam, quenChamRa: quenRa,
     caHomNay, gioHomNay: Math.round(phutHomNay / 6) / 10,
-    treHomNay, ngoaiVung,
+    ngoaiVung,
     caChoDuyet: choDuyet, giaoCaChoXacNhan: choXacNhan,
     doanhThuHomNay, lechQuyHomNay, soBienBanHomNay,
     canhBaoKho: cbKho.slice(0, 12), soCanhBaoKho: cbKho.length,
@@ -882,7 +871,7 @@ export function qlDangTrongCa_() {
         id: String(r.id), maNV: String(r.maNV), hoTen: String(r.hoTen || ''),
         ngay, maCa: String(r.maCa || ''), tenCa: c ? c.tenCa : '',
         gioVao: tstr_(r.gioVao), daLamPhut: daLam, boQuen: ngay < homQua,
-        soPhutTre: num_(r.soPhutTre), ngoaiVung: bool_(r.ngoaiVung)
+        ngoaiVung: bool_(r.ngoaiVung)
       };
     })
     .sort((a, b) => (a.ngay + a.gioVao).localeCompare(b.ngay + b.gioVao));
@@ -974,7 +963,7 @@ function tinhLaiChamCong_(maCa, gioVao, gioRa) {
   const pVao = phutTuChuoi_(gioVao);
   if (pVao < 0) throw new Error('Giờ vào không hợp lệ (định dạng HH:mm).');
 
-  const out = { soPhutTre: ca ? Math.max(0, lechPhut_(pVao, ca.phutBatDau % 1440)) : 0 };
+  const out = {};
 
   if (!gioRa) {
     out.soPhutLam = '';
@@ -1012,7 +1001,7 @@ export function qlChamCong_(nv, p) {
         id: String(r.id), maNV: String(r.maNV), hoTen: String(r.hoTen || ''),
         ngay: dstr_(r.ngay), maCa: String(r.maCa || ''), tenCa: c ? c.tenCa : String(r.maCa || ''),
         gioVao: tstr_(r.gioVao), gioRa: tstr_(r.gioRa),
-        soPhutLam: num_(r.soPhutLam), soPhutTre: num_(r.soPhutTre), soPhutVeSom: num_(r.soPhutVeSom),
+        soPhutLam: num_(r.soPhutLam), soPhutVeSom: num_(r.soPhutVeSom),
         trangThai: String(r.trangThai || ''),
         ngoaiVung: bool_(r.ngoaiVung), ngoaiLich: bool_(r.ngoaiLich),
         khoangCachVao: r.khoangCachVao === '' ? '' : num_(r.khoangCachVao),
@@ -1040,7 +1029,7 @@ export function qlSuaChamCong_(nv, p) {
   const tinh = tinhLaiChamCong_(maCa, gioVao, gioRa);
   patchRow_(SHEETS.CHAMCONG, r._row, {
     ngay, maCa, gioVao, gioRa,
-    soPhutLam: tinh.soPhutLam, soPhutTre: tinh.soPhutTre, soPhutVeSom: tinh.soPhutVeSom,
+    soPhutLam: tinh.soPhutLam, soPhutVeSom: tinh.soPhutVeSom,
     trangThai: tinh.trangThai,
     ghiChu: String(p.ghiChu !== undefined ? p.ghiChu : (r.ghiChu || '')),
     nguoiSua: nv.maNV, thoiGianSua: nowStamp_()
@@ -1062,7 +1051,7 @@ export function qlThemChamCong_(nv, p) {
   withLock_(() => appendObj_(SHEETS.CHAMCONG, {
     id: uid_('CC'), maNV: ma, hoTen: nvT.hoTen, ngay, maCa,
     gioVao: tstr_(p.gioVao), gioRa: tstr_(p.gioRa),
-    soPhutLam: tinh.soPhutLam, soPhutTre: tinh.soPhutTre, soPhutVeSom: tinh.soPhutVeSom,
+    soPhutLam: tinh.soPhutLam, soPhutVeSom: tinh.soPhutVeSom,
     trangThai: tinh.trangThai,
     viTriVao: '', khoangCachVao: '', viTriRa: '', khoangCachRa: '',
     ngoaiVung: 'FALSE', ngoaiLich: 'FALSE', anhVao: '', anhRa: '',
@@ -1224,7 +1213,7 @@ export function qlChotLuong_(nv, p) {
       id: uid_('BL'), thang: k.thang, maNV: x.maNV, hoTen: x.hoTen,
       soCa: x.soCa, tongPhutLam: x.tongPhutLam, tongGio: x.tongGio,
       luongTheoGio: x.luongTheoGio, luongCa: x.luongCa, phuCap: x.phuCap,
-      thuong: x.thuong, phat: x.phat, soLanTre: x.soLanTre, thucNhan: x.thucNhan,
+      thuong: x.thuong, phat: x.phat, thucNhan: x.thucNhan,
       trangThai: 'DaChot', nguoiChot: nv.maNV, thoiGianChot: stamp
     }));
     appendMany_(SHEETS.BANGLUONG, rows);

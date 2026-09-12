@@ -52,7 +52,7 @@ let r = await api(null, 'appInfo', {});
 ok('gọi được khi bảng tính còn trống', r.ok === true, r.error);
 ok('tạo đủ 11 sheet', tenCacSheet().length === 11, tenCacSheet());
 ok('có sheet ChamCong', tenCacSheet().includes('ChamCong'));
-ok('seed 16 cài đặt', docSheet('CaiDat').length === 16, docSheet('CaiDat').length);
+ok('seed 15 cài đặt', docSheet('CaiDat').length === 15, docSheet('CaiDat').length);
 ok('seed 4 ca làm việc', docSheet('CaLamViec').length === 4);
 ok('seed 12 mặt hàng', docSheet('DanhMucHang').length === 12);
 ok('seed 2 tài khoản', docSheet('NhanVien').length === 2);
@@ -100,23 +100,22 @@ datGio('2026-08-15T03:00:00Z');
 
 await must(tkQL, 'ql.luuCaiDat', { caiDat: {
   latQuan: '10.762622', lngQuan: '106.660172', banKinhChamCong: '150',
-  chanNgoaiVung: 'FALSE', phutTreChoPhep: '5',
+  chanNgoaiVung: 'FALSE',
   luongGioMacDinh: '25000', phuCapCaMacDinh: '0', nguongPhutTinhPhuCap: '240',
   lamTronPhut: '0', thoiGianPhienDangNhap: '999999'
 }});
 tkQL = (await must(null, 'login', { maNV: 'QL001', pin: '246813' })).token;
 tkNV = (await must(null, 'login', { maNV: 'NV001', pin: '778899' })).token;
 ok('lưu và đọc lại được toạ độ quán', caiDat('latQuan') === '10.762622');
-ok('không tạo dòng cài đặt trùng', docSheet('CaiDat').length === 16, docSheet('CaiDat').length);
+ok('không tạo dòng cài đặt trùng', docSheet('CaiDat').length === 15, docSheet('CaiDat').length);
 
 /* ============ 4. Chấm công ============ */
 nhom('4. Chấm công vào / ra');
-datGio('2026-08-17T00:10:00Z');                       // 07:10 VN, trễ 70' so với ca sáng
+datGio('2026-08-17T00:10:00Z');                       // 07:10 VN
 r = await api(tkNV, 'cc.vao', { maCa: 'CA1', lat: 10.762622, lng: 106.660172 });
 ok('chấm vào thành công', r.ok === true, r.error);
 let cc = docSheet('ChamCong')[0];
 ok('ghi đúng giờ vào 07:10', cc.gioVao === '07:10', cc.gioVao);
-ok('tính đúng trễ 70 phút', Number(cc.soPhutTre) === 70, cc.soPhutTre);
 ok('trong bán kính → không gắn cờ ngoài vùng', cc.ngoaiVung === 'FALSE');
 ok('không có lịch duyệt → gắn cờ ngoài lịch', cc.ngoaiLich === 'TRUE');
 ok('đang trong ca thì không vào lại được', (await api(tkNV, 'cc.vao', { maCa: 'CA2' })).ok === false);
@@ -158,7 +157,6 @@ r = await api(tkNV, 'cc.ra', { lat: 10.762622, lng: 106.660172 });
 ok('chấm ra sau nửa đêm thành công', r.ok === true, r.error);
 cc = docSheet('ChamCong').find(x => x.maCa === 'CAD');
 ok('ca qua đêm tính đúng 240 phút', Number(cc.soPhutLam) === 240, cc.soPhutLam);
-ok('ca qua đêm không bị tính trễ', Number(cc.soPhutTre) === 0, cc.soPhutTre);
 ok('ca qua đêm ghi vào ngày bắt đầu', cc.ngay === '2026-08-18', cc.ngay);
 
 /* ============ 6. Báo ca & duyệt ============ */
@@ -196,10 +194,10 @@ await must(tkQL, 'ql.luuNhanVien', { maNV: 'NV001', hoTen: 'Nhân viên mẫu', 
 
 let L = (await must(tkQL, 'ql.bangLuong', { thang: '2026-08', maNV: 'NV001' })).danhSach[0];
 /* Mọi ca tính như nhau: giờ × lương/giờ. Không hệ số, không phạt trễ.
-   17/8 CA1 07:10–12:05 = 295' -> 147.500   (trễ 70')
-   17/8 CA2 12:10–18:05 = 355' -> 177.500   (trễ 10')
-   18/8 CAD 22:00–02:00 = 240' -> 120.000   (trễ  0')
-   25/8 CA1 07:00–12:00 = 300' -> 150.000   (trễ 60')
+   17/8 CA1 07:10–12:05 = 295' -> 147.500
+   17/8 CA2 12:10–18:05 = 355' -> 177.500
+   18/8 CAD 22:00–02:00 = 240' -> 120.000
+   25/8 CA1 07:00–12:00 = 300' -> 150.000
                 lương ca      = 595.000                              */
 ok('đếm đúng 4 ca', L.soCa === 4, L.soCa);
 ok('tổng phút công = 1190', L.tongPhutLam === 1190, L.tongPhutLam);
@@ -207,8 +205,7 @@ ok('lương ca = 595.000', L.luongCa === 595000, L.luongCa);
 ok('ca đêm KHÔNG được nhân hệ số',
    L.chiTiet.find(c => c.maCa === 'CAD').tienCa === 120000);
 ok('không có phụ cấp khi để 0', L.phuCap === 0, L.phuCap);
-ok('đi trễ KHÔNG bị trừ lương', L.thucNhan === 595000, L.thucNhan);
-ok('vẫn thống kê 3 lần đi trễ cho quản lý xem', L.soLanTre === 3, L.soLanTre);
+ok('không có trường theo dõi đi trễ', L.soLanTre === undefined && L.tongPhutTre === undefined);
 ok('không còn trường phạt trễ', L.phatTre === undefined);
 
 await must(tkQL, 'ql.luuNhanVien', { maNV: 'NV001', hoTen: 'Nhân viên mẫu', chucVu: 'NhanVien',
@@ -241,7 +238,6 @@ const mucSua = dsCC.danhSach.find(x => x.ngay === '2026-08-25');
 await must(tkQL, 'ql.suaChamCong', { id: mucSua.id, gioVao: '06:00', gioRa: '12:00', ghiChu: 'Sửa giúp NV' });
 cc = docSheet('ChamCong').find(x => x.ngay === '2026-08-25');
 ok('sửa giờ → tính lại 360 phút', Number(cc.soPhutLam) === 360, cc.soPhutLam);
-ok('sửa giờ → xoá trễ', Number(cc.soPhutTre) === 0, cc.soPhutTre);
 ok('ghi lại người sửa', cc.nguoiSua === 'QL001', cc.nguoiSua);
 ok('giờ ra sai định dạng bị từ chối',
    (await api(tkQL, 'ql.suaChamCong', { id: mucSua.id, gioVao: '06:00', gioRa: 'abc' })).ok === false);

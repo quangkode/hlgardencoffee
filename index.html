@@ -700,8 +700,6 @@ VIEWS.cc = function(root){
           '<div style="font-size:15px;font-weight:700">' + h(d.hienTai.tenCa || d.hienTai.maCa) + '</div>' +
           '<div class="small muted">• vào lúc ' + h(d.hienTai.gioVao) + '</div>' +
         '</div>' +
-        (d.hienTai.soPhutTre > (S.cfg.phutTreChoPhep || 5)
-          ? '<div class="chip warn mt">Trễ ' + d.hienTai.soPhutTre + ' phút</div>' : '') +
         (d.hienTai.ngoaiVung ? '<div class="chip err mt" style="margin-left:6px">Chấm ngoài vùng quán</div>' : '') +
       '</div>';
     }
@@ -718,8 +716,7 @@ VIEWS.cc = function(root){
       ? d.daLamHomNay.map(function(x){
           return '<div class="item"><div class="av">&#10003;</div><div class="grow">' +
                  '<div class="t1">' + h(x.maCa) + ' · ' + h(x.gioVao) + ' → ' + h(x.gioRa) + '</div>' +
-                 '<div class="t2">' + soPhutRaGio(x.soPhutLam) +
-                 (x.soPhutTre > (S.cfg.phutTreChoPhep||5) ? ' · trễ ' + x.soPhutTre + "'" : '') + '</div></div></div>';
+                 '<div class="t2">' + soPhutRaGio(x.soPhutLam) + '</div></div></div>';
         }).join('')
       : '';
 
@@ -749,10 +746,9 @@ VIEWS.cc = function(root){
       (daLam ? '<div class="sec-title">Đã hoàn thành hôm nay</div><div class="card tight">' + daLam + '</div>' : '') +
 
       '<div class="sec-title">' + h(thangVN(tk.thang)) + '</div>' +
-      '<div class="grid3">' +
+      '<div class="grid2">' +
         '<div class="stat brand"><div class="v">' + tk.tongGio + '</div><div class="l">Giờ làm</div></div>' +
         '<div class="stat"><div class="v">' + tk.soCa + '</div><div class="l">Số ca</div></div>' +
-        '<div class="stat ' + (tk.soLanTre ? 'warn' : 'ok') + '"><div class="v">' + tk.soLanTre + '</div><div class="l">Lần trễ</div></div>' +
       '</div>' +
       '<button class="btn ghost block mt" onclick="go(\'toi\')">Xem lương &amp; kết quả làm việc &rsaquo;</button>';
 
@@ -1083,7 +1079,7 @@ VIEWS.toi = function(root, tham){
     .then(function(r){
       var L = r[0].luong, ct = r[1].danhSach;
       if (!L) L = { tongGio:0, soCa:0, luongCa:0, phuCap:0, thuong:0, phat:0, thucNhan:0,
-                    soLanTre:0, luongTheoGio:0, thuongPhat:[], daChot:'' };
+                    luongTheoGio:0, thuongPhat:[], daChot:'' };
 
       root.innerHTML =
         '<div class="card tight"><div class="spread">' +
@@ -1107,8 +1103,6 @@ VIEWS.toi = function(root, tham){
           (L.phat ? dongTien('Phạt', -L.phat, 'err') : '') +
           '<hr class="sep">' +
           dongTien('<b>Thực nhận</b>', L.thucNhan, 'brand') +
-          (L.soLanTre ? '<div class="xs muted mt">Tháng này bạn đi trễ ' + L.soLanTre +
-            ' lần — không bị trừ tiền, nhưng quản lý có xem.</div>' : '') +
         '</div>' +
 
         (L.thuongPhat && L.thuongPhat.length
@@ -1125,8 +1119,7 @@ VIEWS.toi = function(root, tham){
           ct.map(function(x){
             return '<tr><td class="nowrap">' + h(ngayNgan(x.ngay)) + '</td>' +
               '<td class="ellip" style="max-width:80px">' + h(x.tenCa) + '</td>' +
-              '<td>' + h(x.gioVao) + (x.soPhutTre > (S.cfg.phutTreChoPhep||5)
-                ? '<span class="xs" style="color:var(--err)"> +' + x.soPhutTre + "'</span>" : '') + '</td>' +
+              '<td>' + h(x.gioVao) + '</td>' +
               '<td>' + (x.gioRa || '<span class="chip warn">chưa ra</span>') + '</td>' +
               '<td class="right nowrap">' + (x.soPhutLam ? soPhutRaGio(x.soPhutLam) : '—') + '</td></tr>';
           }).join('') + '</table></div></div>' : trong('&#128337;', 'Chưa có ca nào trong tháng.')) +
@@ -1195,10 +1188,9 @@ VIEWS.q_home = function(root){
       }).join('') + '</div>' : '') +
 
       '<div class="sec-title">Hôm nay</div>' +
-      '<div class="grid3">' +
+      '<div class="grid2">' +
         '<div class="stat brand"><div class="v">' + d.caHomNay + '</div><div class="l">Lượt ca</div></div>' +
         '<div class="stat"><div class="v">' + d.gioHomNay + '</div><div class="l">Giờ công</div></div>' +
-        '<div class="stat ' + (d.treHomNay ? 'warn' : 'ok') + '"><div class="v">' + d.treHomNay + '</div><div class="l">Đi trễ</div></div>' +
       '</div>' +
       '<div class="grid3 mt">' +
         '<div class="stat"><div class="v" style="font-size:15px">' + tien(d.doanhThuHomNay) + '</div><div class="l">Doanh thu</div></div>' +
@@ -1218,7 +1210,6 @@ VIEWS.q_home = function(root){
           '<div class="right">' +
             (x.trangThai === 'DangLam' ? '<span class="chip ok">Đang làm</span>'
               : '<span class="chip grey">' + soPhutRaGio(x.soPhutLam) + '</span>') +
-            (x.soPhutTre > (S.cfg.phutTreChoPhep||5) ? '<div class="xs" style="color:var(--err)">trễ ' + x.soPhutTre + "'</div>" : '') +
             (x.ngoaiVung ? '<div class="xs" style="color:var(--err)">ngoài vùng</div>' : '') +
           '</div></div>';
       }).join('') + '</div>' : trong('&#128337;', 'Chưa ai chấm công hôm nay.')) +
@@ -1297,7 +1288,6 @@ VIEWS.q_cc = function(root, tham){
                 '<div class="right">' +
                   (x.trangThai === 'DangLam' ? '<span class="chip ok">Đang làm</span>'
                     : '<b>' + soPhutRaGio(x.soPhutLam) + '</b>') +
-                  (x.soPhutTre > (S.cfg.phutTreChoPhep||5) ? '<div class="xs" style="color:var(--err)">trễ ' + x.soPhutTre + "'</div>" : '') +
                   (x.ngoaiLich ? '<div class="xs" style="color:var(--warn)">ngoài lịch</div>' : '') +
                   (x.ngoaiVung ? '<div class="xs" style="color:var(--err)">ngoài vùng' +
                     (x.khoangCachVao !== '' ? ' ' + x.khoangCachVao + 'm' : '') + '</div>' : '') +
@@ -1403,8 +1393,7 @@ VIEWS.q_luong = function(root, tham){
             '<div class="av">' + h(chuCai(x.hoTen)) + '</div>' +
             '<div class="grow"><div class="t1">' + h(x.hoTen) +
               (x.trangThaiNV !== 'DangLam' ? ' <span class="chip grey">nghỉ</span>' : '') + '</div>' +
-            '<div class="t2">' + x.soCa + ' ca · ' + x.tongGio + 'h · ' + tien(x.luongTheoGio) + '/h' +
-            (x.soLanTre ? ' · trễ ' + x.soLanTre : '') + '</div></div>' +
+            '<div class="t2">' + x.soCa + ' ca · ' + x.tongGio + 'h · ' + tien(x.luongTheoGio) + '/h' + '</div></div>' +
             '<div class="right"><b style="color:var(--brand)">' + tien(x.thucNhan) + '</b>' +
             (x.daChot === 'DaChot' ? '<div class="xs" style="color:var(--ok)">đã chốt</div>' : '') + '</div></div>';
         }).join('') + '</div>' : trong('&#128176;', 'Chưa có dữ liệu lương tháng này.')) +
@@ -1434,7 +1423,6 @@ function chiTietLuong(maNV){
           (x.thuong ? dongTien('Thưởng', x.thuong, 'ok') : '') +
           (x.phat ? dongTien('Phạt', -x.phat, 'err') : '') +
           '<hr class="sep">' + dongTien('<b>Thực nhận</b>', x.thucNhan, 'brand') +
-          (x.soLanTre ? '<div class="xs muted mt">Đi trễ ' + x.soLanTre + ' lần (không trừ lương)</div>' : '') +
         '</div>' +
         '<div class="sec-title">Chi tiết từng ca</div>' +
         '<div class="card tight"><div class="scrollx"><table class="tbl">' +
@@ -1443,7 +1431,7 @@ function chiTietLuong(maNV){
           return '<tr><td class="nowrap">' + h(ngayNgan(c.ngay)) + '</td>' +
             '<td>' + h(c.maCa) + '</td>' +
             '<td class="nowrap">' + h(c.gioVao) + '-' + h(c.gioRa) + '<br><span class="xs muted">' + c.gio + 'h' +
-            (c.soPhutTre > 0 ? ' · trễ ' + c.soPhutTre + "'" : '') + '</span></td>' +
+            '</span></td>' +
             '<td class="right nowrap">' + tien(c.thanhTien) + '</td></tr>';
         }).join('') + '</table></div></div>' +
         '<button class="btn ghost block" onclick="dongSheet();moThuongPhat(\'' + x.maNV + '\')">Thêm thưởng / phạt cho ' + h(x.hoTen) + '</button>'
@@ -1838,7 +1826,6 @@ var NHAN_CAI_DAT = {
   banKinhChamCong:       { l:'Bán kính cho phép chấm công (mét)', t:'number', hint:'0 = không kiểm tra vị trí' },
   batBuocViTri:          { l:'Bắt buộc bật GPS khi chấm công', t:'checkbox' },
   chanNgoaiVung:         { l:'Chặn hẳn nếu đứng ngoài bán kính', t:'checkbox', hint:'Tắt = vẫn cho chấm nhưng gắn cờ đỏ để bạn xem' },
-  phutTreChoPhep:        { l:'Trễ quá bao nhiêu phút thì hiện cảnh báo', t:'number', hint:'Chỉ để bạn theo dõi, không trừ tiền lương' },
   luongGioMacDinh:       { l:'Lương/giờ mặc định (đồng)', t:'number' },
   phuCapCaMacDinh:       { l:'Phụ cấp thêm mỗi ca (đồng)', t:'number', hint:'Để 0 nếu chỉ trả lương theo giờ' },
   nguongPhutTinhPhuCap:  { l:'Số phút tối thiểu để được phụ cấp ca', t:'number' },

@@ -144,8 +144,7 @@ THỰC NHẬN = Σ tiền ca + thưởng − phạt
 
 Với mức mặc định 25.000đ/giờ: làm 6 tiếng được 150.000đ, ca sáng hay ca đêm đều vậy.
 
-- **Không hệ số ca, không phạt tiền đi trễ.** Số phút trễ vẫn ghi lại và hiện cho
-  quản lý theo dõi, nhưng không trừ lương.
+- **Không hệ số ca, không phạt tiền đi trễ.** Đi trễ không bị theo dõi hay trừ lương.
 - **Nghỉ giữa ca** được trừ khỏi giờ công.
 - **Ca qua đêm** tính đúng, ghi vào ngày bắt đầu ca.
 - **Thưởng / phạt** quản lý nhập tay theo tháng — cách duy nhất tiền bị cộng trừ
@@ -164,7 +163,7 @@ lúc nào. Sửa tay trên Sheets cũng được, app đọc lại ngay.
 | `NhanVien` | Nhân sự, lương/giờ, vai trò, PIN đã băm |
 | `CaLamViec` | Định nghĩa ca: giờ, nghỉ giữa ca |
 | `LichLamViec` | Báo ca / xếp ca và trạng thái duyệt |
-| `ChamCong` | Từng lượt vào/ra, GPS, phút công, trễ, về sớm |
+| `ChamCong` | Từng lượt vào/ra, GPS, phút công, về sớm |
 | `DanhMucHang` | Mặt hàng, đơn vị, tồn định mức, giá vốn |
 | `KiemKho` | Tồn trước, nhập thêm, thực tế, hao hụt |
 | `GiaoCa` | Doanh thu, quỹ tiền mặt, chênh lệch từng ca |

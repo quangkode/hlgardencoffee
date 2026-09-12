@@ -17,7 +17,6 @@ export const CAI_DAT_MAC_DINH = [
   ['banKinhChamCong',      '150',             'Bán kính cho phép chấm công (mét). 0 = không kiểm tra vị trí'],
   ['batBuocViTri',         'TRUE',            'TRUE = bắt buộc bật GPS mới chấm công được'],
   ['chanNgoaiVung',        'FALSE',           'TRUE = chặn hẳn nếu đứng ngoài bán kính. FALSE = vẫn cho chấm nhưng gắn cờ đỏ'],
-  ['phutTreChoPhep',       '5',               'Trễ quá bao nhiêu phút thì hiện cảnh báo cho quản lý (không trừ tiền)'],
   ['luongGioMacDinh',      '25000',           'Lương/giờ mặc định khi nhân viên chưa được set riêng'],
   ['phuCapCaMacDinh',      '0',               'Phụ cấp thêm mỗi ca làm đủ (đồng). Để 0 = chỉ tính lương theo giờ'],
   ['nguongPhutTinhPhuCap', '240',             'Làm tối thiểu bao nhiêu phút thì được tính phụ cấp ca'],

@@ -191,7 +191,6 @@ export function cauHinhChoClient_() {
     choPhepTuDangKyCa: getCfgBool_('choPhepTuDangKyCa', true),
     hanBaoCaTruoc: getCfgNum_('hanBaoCaTruoc', 1),
     batBuocKiemKhoCuoiCa: getCfgBool_('batBuocKiemKhoCuoiCa', false),
-    phutTreChoPhep: getCfgNum_('phutTreChoPhep', 5),
     serverTime: nowStamp_(),
     homNay: today_()
   };
