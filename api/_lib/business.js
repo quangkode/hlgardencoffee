@@ -16,6 +16,7 @@ import {
   taoNhanVien_, taoHashPin_, hoSoCongKhai_, laQuanLy_, batBuocQuanLy_,
   cauHinhChoClient_, doiPin_
 } from './auth.js';
+import { read as xlsxDoc_, utils as xlsxUtils_ } from 'xlsx';
 
 /* Apps Script có LockService, môi trường serverless thì không. Việc thêm dòng
    qua Sheets API vốn đã nguyên tử, còn sửa/xoá theo chỉ số dòng chỉ do quản lý
@@ -553,6 +554,206 @@ export function khoLichSu_(nv, p) {
   const den = dstr_(p.denNgay) || today_();
   const rows = readAll_(SHEETS.KIEMKHO).filter(r => trongKhoang_(r.ngay, tu, den));
   return { tu, den, phieu: gomPhieuKho_(rows).slice(0, 60) };
+}
+
+/* ================= KIỂM KHO: NHẬP TỪ EXCEL =================
+ * Mỗi sheet trong file = một ngày kiểm kho (tên sheet dạng "10-8" = ngày 10
+ * tháng 8, không có năm nên suy ra từ ngày hiện tại). Bảng trong sheet có
+ * đúng khuôn: Tên thực phẩm | Đơn vị tính | Kho(SL,Đơn giá,Thành tiền) |
+ * Nhập(SL,Đơn giá,Thành tiền) | Xuất(...) | Tồn cuối ngày(SL). Ta chỉ cần
+ * cột Kho.SL (tồn trước), Nhập.SL, Tồn cuối ngày.SL — hao hụt tính lại y
+ * như phiếu kiểm kho bình thường, không tin cột Xuất có sẵn trong file.
+ */
+
+const DAU_KHOI_ = String.fromCodePoint(0x0300) + "-" + String.fromCodePoint(0x036f);
+const DAU_RE_ = new RegExp("[" + DAU_KHOI_ + "]", "g");
+
+function boDauTV_(s) {
+  return String(s == null ? '' : s)
+    .normalize('NFD').replace(DAU_RE_, '')
+    .replace(/đ/g, 'd').replace(/Đ/g, 'D');
+}
+function chuanHoaTenHang_(s) {
+  return boDauTV_(s).trim().toLowerCase().replace(/\s+/g, ' ');
+}
+function taoMaHangTuTen_(ten, daDung) {
+  let goc = boDauTV_(ten).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 18);
+  if (goc.length < 2) goc = (goc + 'MH').slice(0, 2);
+  let ma = goc, i = 1;
+  while (daDung.has(ma)) {
+    i++;
+    const hau = String(i);
+    ma = goc.slice(0, 20 - hau.length - 1) + '_' + hau;
+  }
+  daDung.add(ma);
+  return ma;
+}
+
+/** Suy ra ngày ISO từ tên sheet "D-M" hoặc "D/M", chọn năm sao cho không ở tương lai. */
+function ngayTuTenSheetKho_(tenSheet, homNay) {
+  const m = String(tenSheet).trim().match(/^(\d{1,2})[-\/](\d{1,2})$/);
+  if (!m) return null;
+  const d = parseInt(m[1], 10), mo = parseInt(m[2], 10);
+  if (d < 1 || d > 31 || mo < 1 || mo > 12) return null;
+  const nam = parseInt(String(homNay).slice(0, 4), 10);
+  const ghep = y => y + '-' + pad2_(mo) + '-' + pad2_(d);
+  let ngay = ghep(nam);
+  if (ngay > homNay) ngay = ghep(nam - 1);
+  return ngay;
+}
+
+/** Đọc các dòng mặt hàng của một sheet-ngày, dừng ở dòng "Tổng" hoặc hết dữ liệu. */
+function docSheetKhoExcel_(sheet) {
+  const rows = xlsxUtils_.sheet_to_json(sheet, { header: 1, defval: '' });
+  let batDau = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][1] || '').trim() === 'Đơn vị tính') { batDau = i + 1; break; }
+  }
+  if (batDau < 0) return [];
+
+  const items = [];
+  for (let i = batDau; i < rows.length; i++) {
+    const r = rows[i];
+    const ten = String(r[0] || '').trim();
+    if (!ten || boDauTV_(ten).trim().toLowerCase() === 'tong') break;
+    const thucTeRaw = r[11];
+    if (thucTeRaw === '' || thucTeRaw === undefined || thucTeRaw === null) continue;
+    items.push({
+      tenHang: ten, donVi: String(r[1] || '').trim(),
+      tonTruoc: num_(r[2]), nhapThem: num_(r[5]), thucTe: num_(thucTeRaw),
+      donGia: num_(r[3]) || num_(r[6]) || 0
+    });
+  }
+  return items;
+}
+
+/** Đọc toàn bộ file (base64) thành { ngayList, boQua }, không đụng tới dữ liệu. */
+function docExcelKho_(fileBase64) {
+  let wb;
+  try {
+    wb = xlsxDoc_(Buffer.from(String(fileBase64 || ''), 'base64'), { type: 'buffer' });
+  } catch {
+    throw new Error('File này có vẻ không đúng định dạng Excel. Kiểm tra lại đúng file .xls/.xlsx.');
+  }
+  const homNay = today_();
+  const boQua = [];
+  const ngayList = [];
+  wb.SheetNames.forEach(ten => {
+    const ngay = ngayTuTenSheetKho_(ten, homNay);
+    if (!ngay) { boQua.push(ten); return; }
+    const items = docSheetKhoExcel_(wb.Sheets[ten]);
+    if (items.length) ngayList.push({ ngay, items });
+  });
+  ngayList.sort((a, b) => a.ngay.localeCompare(b.ngay));
+  return { ngayList, boQua };
+}
+
+/**
+ * ql.nhapKhoExcel — payload.xacNhan=false (mặc định): chỉ đọc và trả bản xem
+ * trước (không ghi gì). payload.xacNhan=true: ghi thật — tạo mặt hàng mới
+ * nếu tên chưa có trong danh mục, rồi ghi một phiếu kiểm kho cho mỗi ngày.
+ */
+export function qlNhapKhoExcel_(nv, p) {
+  const { ngayList: dsNgayDoc, boQua } = docExcelKho_(p.fileBase64);
+  if (!dsNgayDoc.length) {
+    throw new Error('File không có ngày/mặt hàng hợp lệ nào. Mỗi sheet phải tên dạng "10-8" ' +
+                     'và có cột "Đơn vị tính", "Tồn cuối ngày".');
+  }
+
+  // Ngày nào đã có phiếu nhập từ Excel trước đó thì bỏ qua, để lỡ nhập lại
+  // đúng file cũ (hoặc file chồng lấn ngày) không tạo dữ liệu trùng.
+  const ngayDaNhap = new Set(
+    readAll_(SHEETS.KIEMKHO)
+      .filter(r => String(r.maCa).trim().toUpperCase() === 'NHAP-EXCEL')
+      .map(r => dstr_(r.ngay))
+  );
+  const ngayTrungLap = dsNgayDoc.filter(x => ngayDaNhap.has(x.ngay)).map(x => x.ngay);
+  const ngayList = dsNgayDoc.filter(x => !ngayDaNhap.has(x.ngay));
+  const tuNgay = dsNgayDoc[0].ngay, denNgay = dsNgayDoc[dsNgayDoc.length - 1].ngay;
+
+  if (!ngayList.length && p.xacNhan) {
+    throw new Error('Cả ' + dsNgayDoc.length + ' ngày trong file đã được nhập từ Excel trước đó rồi ' +
+                     '(xem lại ở tab "Phiếu kiểm"). Không có gì để nhập thêm.');
+  }
+
+  const dm = {};            // maHang -> { tenHang, donVi, tonDinhMuc }
+  const tenSangMa = {};     // tên đã chuẩn hoá -> maHang
+  const maDaDung = new Set();
+  readAll_(SHEETS.HANG).forEach(r => {
+    const ma = String(r.maHang).trim().toUpperCase();
+    maDaDung.add(ma);
+    dm[ma] = { tenHang: String(r.tenHang || ''), donVi: String(r.donVi || ''), tonDinhMuc: num_(r.tonDinhMuc) };
+    tenSangMa[chuanHoaTenHang_(r.tenHang)] = ma;
+  });
+
+  const hangMoi = [];
+  const dongKho = [];
+  let soCanhBao = 0;
+
+  ngayList.forEach(({ ngay, items }) => {
+    const idPhieu = uid_('KK');
+    items.forEach(it => {
+      const ten = String(it.tenHang || '').trim();
+      if (!ten) return;
+      const key = chuanHoaTenHang_(ten);
+      let ma = tenSangMa[key];
+      if (!ma) {
+        ma = taoMaHangTuTen_(ten, maDaDung);
+        tenSangMa[key] = ma;
+        dm[ma] = { tenHang: ten, donVi: it.donVi, tonDinhMuc: 0 };
+        hangMoi.push({
+          maHang: ma, tenHang: ten, donVi: it.donVi || '',
+          nhomHang: 'Nhập từ Excel', tonDinhMuc: 0, giaVon: it.donGia || 0,
+          trangThai: 'HoatDong'
+        });
+      }
+      const h = dm[ma];
+      const hao = Math.round((it.tonTruoc + it.nhapThem - it.thucTe) * 1000) / 1000;
+      const duoi = h.tonDinhMuc > 0 && it.thucTe < h.tonDinhMuc;
+      if (duoi) soCanhBao++;
+
+      dongKho.push({
+        id: idPhieu, thoiGian: ngay + ' 12:00:00', ngay, maCa: 'NHAP-EXCEL',
+        maNV: nv.maNV, hoTen: nv.hoTen,
+        maHang: ma, tenHang: h.tenHang || ten, donVi: h.donVi || it.donVi || '',
+        tonTruoc: it.tonTruoc, nhapThem: it.nhapThem, thucTe: it.thucTe, haoHut: hao,
+        duoiDinhMuc: duoi ? 'TRUE' : 'FALSE',
+        ghiChu: String(p.ghiChu || '')
+      });
+    });
+  });
+
+  if (ngayList.length && !dongKho.length) {
+    throw new Error('File không có dòng mặt hàng nào có "Tồn cuối ngày" để nhập.');
+  }
+
+  if (!p.xacNhan) {
+    return {
+      xemTruoc: true,
+      soNgay: ngayList.length,
+      tuNgay, denNgay,
+      soDong: dongKho.length, soHangMoi: hangMoi.length,
+      tenHangMoi: hangMoi.map(h => h.tenHang),
+      sheetBoQua: boQua,
+      ngayTrungLap
+    };
+  }
+
+  withLock_(() => {
+    if (hangMoi.length) appendMany_(SHEETS.HANG, hangMoi);
+    appendMany_(SHEETS.KIEMKHO, dongKho);
+  });
+  ghiNhatKy_(nv, 'NhapKhoExcel',
+    tuNgay + ' -> ' + denNgay + ' -- ' + dongKho.length + ' dong, ' + hangMoi.length + ' mat hang moi');
+
+  return {
+    thongBao: 'Đã nhập kho ' + ngayList.length + ' ngày (' + tuNgay + ' → ' + denNgay + '), ' +
+              dongKho.length + ' dòng' +
+              (hangMoi.length ? ', tạo mới ' + hangMoi.length + ' mặt hàng' : '') + '.' +
+              (ngayTrungLap.length ? '\nBỏ qua ' + ngayTrungLap.length + ' ngày đã nhập trước đó.' : '') +
+              (boQua.length ? '\nBỏ qua sheet không đúng định dạng ngày: ' + boQua.join(', ') : ''),
+    soDong: dongKho.length, soHangMoi: hangMoi.length, soCanhBao
+  };
 }
 
 /* ================= GIAO CA ================= */

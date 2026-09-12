@@ -17,7 +17,7 @@ không cần cài app, không cần tài khoản Google.
 | Chấm công vào/ra theo giờ máy chủ + GPS | ✅ | ✅ |
 | Báo ca (đăng ký lịch làm) | ✅ đăng ký | ✅ duyệt / xếp ca |
 | Theo dõi giờ công & lương | ✅ của mình | ✅ toàn quán |
-| Kiểm kho cuối ca | ✅ nhập phiếu | ✅ xem hao hụt, quy ra tiền |
+| Kiểm kho cuối ca | ✅ nhập phiếu | ✅ xem hao hụt, quy ra tiền, nhập hàng loạt từ Excel |
 | Giao ca (doanh thu, quỹ tiền mặt) | ✅ lập & xác nhận | ✅ tổng hợp |
 | Bảng lương, thưởng/phạt, chốt lương | — | ✅ |
 | Quản lý nhân viên, ca làm, cài đặt quán | — | ✅ |
@@ -248,3 +248,7 @@ thức. Các lần sau nhanh ngay.
   làm nên xác suất gần như không có.
 - **Dọn dữ liệu mỗi năm.** Sheet `KiemKho` và `NhatKy` phình nhanh nhất. Khi `ChamCong`
   vượt khoảng 20.000 dòng, nên cắt dữ liệu năm cũ sang file lưu trữ riêng.
+- **Nhập kho từ Excel** (Kho → tab Danh mục) chỉ nhận file có mỗi sheet là một ngày,
+  tên sheet dạng "10-8" (không có năm — suy ra từ ngày hiện tại), và bảng đúng khuôn
+  Tên thực phẩm/Đơn vị tính/Kho/Nhập/Xuất/Tồn cuối ngày. Mặt hàng chưa có trong danh
+  mục sẽ được tự tạo. Ngày đã nhập rồi thì lần nhập sau tự bỏ qua, tránh trùng dữ liệu.

@@ -1545,7 +1545,8 @@ function tabKhoQL(n){
 
   } else {
     b.innerHTML =
-      '<button class="btn block mb" onclick="suaHang(null)">&#10133; Thêm mặt hàng</button>' +
+      '<div class="row mb"><button class="btn grow" onclick="suaHang(null)">&#10133; Thêm mặt hàng</button>' +
+      '<button class="btn ghost grow" onclick="moNhapExcelKho()">&#128229; Nhập từ Excel</button></div>' +
       '<div class="card tight">' + d.danhMuc.map(function(x){
         return '<div class="item" style="cursor:pointer" onclick="suaHang(' + JSON.stringify(x).replace(/"/g,'&quot;') + ')">' +
           '<div class="grow"><div class="t1">' + h(x.tenHang) +
@@ -1576,6 +1577,65 @@ function suaHang(x){
       $('#_hOk').onclick = function(){
         api('ql.luuHang', fRead(root)).then(function(r){ dongSheet(); toast(r.thongBao, 'ok'); lamMoi(); })
           .catch(function(e){ toast(e.message, 'err'); });
+      };
+    }
+  });
+}
+
+function docFileBase64(file){
+  return new Promise(function(res, rej){
+    var fr = new FileReader();
+    fr.onload = function(){ res(String(fr.result).split(',')[1] || ''); };
+    fr.onerror = function(){ rej(new Error('Không đọc được file trên máy.')); };
+    fr.readAsDataURL(file);
+  });
+}
+
+function moNhapExcelKho(){
+  var b64 = '';
+  moSheet({
+    title: '📥 Nhập kho từ Excel',
+    body:
+      '<p class="small muted">Chọn file .xls/.xlsx kiểm kho theo ngày — mỗi sheet là một ngày, tên sheet ' +
+      'dạng "10-8". Mặt hàng chưa có trong danh mục sẽ được tự tạo (nhóm "Nhập từ Excel").</p>' +
+      '<input type="file" class="inp" id="nkFile" accept=".xls,.xlsx">' +
+      '<div id="nkKq" class="mt"></div>',
+    onMount: function(root){
+      $('#nkFile', root).onchange = function(e){
+        var f = e.target.files[0];
+        if (!f) return;
+        $('#nkKq').innerHTML = '<div class="xs muted">Đang đọc file…</div>';
+        docFileBase64(f).then(function(v){
+          b64 = v;
+          return api('ql.nhapKhoExcel', { fileBase64: b64 });
+        }).then(function(r){
+          var canhBao =
+            ((r.sheetBoQua && r.sheetBoQua.length)
+              ? '<div class="chip warn mt">Bỏ qua ' + r.sheetBoQua.length + ' sheet không đúng định dạng ngày: ' +
+                h(r.sheetBoQua.join(', ')) + '</div>' : '') +
+            ((r.ngayTrungLap && r.ngayTrungLap.length)
+              ? '<div class="chip warn mt">' + r.ngayTrungLap.length + ' ngày đã nhập từ Excel trước đó, sẽ bỏ qua: ' +
+                h(r.ngayTrungLap.join(', ')) + '</div>' : '');
+          $('#nkKq').innerHTML =
+            '<div class="card tight">' +
+              '<div class="spread small"><span>Số ngày đọc được</span><b>' + r.soNgay + '</b></div>' +
+              '<div class="spread small"><span>Khoảng ngày</span><b>' + h(r.tuNgay) + ' &rarr; ' + h(r.denNgay) + '</b></div>' +
+              '<div class="spread small"><span>Số dòng kiểm kho</span><b>' + r.soDong + '</b></div>' +
+              '<div class="spread small"><span>Mặt hàng mới sẽ tạo</span><b>' + r.soHangMoi + '</b></div>' +
+              (r.soHangMoi ? '<div class="xs muted mt">' + h(r.tenHangMoi.join(', ')) + '</div>' : '') +
+            '</div>' + canhBao +
+            (r.soDong
+              ? '<button class="btn block mt" id="nkOk">Xác nhận nhập vào kho</button>'
+              : '<div class="small muted mt">Không có ngày nào mới để nhập.</div>');
+          if (r.soDong) $('#nkOk').onclick = function(){
+            $('#nkOk').setAttribute('disabled', 'disabled');
+            api('ql.nhapKhoExcel', { fileBase64: b64, xacNhan: true }).then(function(r2){
+              dongSheet(); toast(r2.thongBao, 'ok', 8000); lamMoi();
+            }).catch(function(err){ toast(err.message, 'err'); $('#nkOk').removeAttribute('disabled'); });
+          };
+        }).catch(function(err){
+          $('#nkKq').innerHTML = '<div class="small" style="color:var(--err)">' + h(err.message) + '</div>';
+        });
       };
     }
   });

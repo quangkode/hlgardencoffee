@@ -50,6 +50,8 @@ const THAO_TAC = {
   'kho.gui':       { sheets: [HANG, KHO, CA, CC],   fn: (nv, p) => B.khoGui_(nv, p) },
   'kho.lichSu':    { sheets: [KHO],                 fn: (nv, p) => B.khoLichSu_(nv, p) },
 
+  'ql.nhapKhoExcel': { ql: true, sheets: [HANG, KHO], fn: (nv, p) => B.qlNhapKhoExcel_(nv, p) },
+
   'gc.dsNguoiNhan':   { sheets: [],           fn: nv => B.gcDanhSachNguoiNhan_(nv) },
   'gc.gui':           { sheets: [GC, CA, CC], fn: (nv, p) => B.gcGui_(nv, p) },
   'gc.danhSach':      { sheets: [GC],         fn: (nv, p) => B.gcDanhSach_(nv, p) },

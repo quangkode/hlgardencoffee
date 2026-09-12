@@ -6,6 +6,7 @@
  * nên bao gồm cả xác thực, phân quyền và phần ghi dữ liệu theo lô.
  *******************************************************/
 
+import { utils as xlsxUtils, write as xlsxWrite } from 'xlsx';
 import {
   lapMoiTruong, lapFetch, lapDongHo, datGio,
   docSheet, tenCacSheet, soLanGoi, resetDemGoi
@@ -386,6 +387,99 @@ datGio('2026-09-03T05:00:00Z');
 await must(tkNV, 'cc.ra', { lat: 10.762622, lng: 106.660172 });
 ok('chấm công ra chỉ tốn 1 đọc + 1 ghi',
    soLanGoi.batchGet === 1 && soLanGoi.batchUpdate === 1 && soLanGoi.append === 1, soLanGoi);
+
+/* ============ 14. Nhập kho từ file Excel ============ */
+nhom('14. Nhập kho từ file Excel');
+
+function trongThieuTV_(...cot) {
+  const r = new Array(12).fill('');
+  cot.forEach((v, i) => { r[i] = v; });
+  return r;
+}
+const HANG_HEAD = ['', 'Đơn vị tính', 'Số lượng', 'Đơn giá', 'Thành tiền',
+                    'Số lượng', 'Đơn giá', 'Thành tiền', 'Số lượng', 'Đơn giá', 'Thành tiền', 'Số lượng'];
+function trangKhoExcel_(items) {
+  return [
+    new Array(12).fill(''),
+    trongThieuTV_('Tên thực phẩm', 'Kho', '', '', '', 'Nhập', '', '', 'Xuất', '', '', 'Tồn cuối ngày'),
+    new Array(12).fill(''),
+    HANG_HEAD,
+    ...items,
+    trongThieuTV_('Tổng')
+  ];
+}
+
+const wbExcel = xlsxUtils.book_new();
+xlsxUtils.book_append_sheet(wbExcel, xlsxUtils.aoa_to_sheet(trangKhoExcel_([
+  trongThieuTV_('Sữa tươi', 'hộp', 5, 29000, 145000, 10, 30000, 300000, 3, 29000, 87000, 12),
+  trongThieuTV_('Bột Matcha Test', 'Gói', '', 0, 0, 2, 120000, 240000, '', '', 0, 2)
+])), '10-8');
+xlsxUtils.book_append_sheet(wbExcel, xlsxUtils.aoa_to_sheet(trangKhoExcel_([
+  trongThieuTV_('Sữa tươi', 'hộp', 12, 29000, 348000, '', '', 0, 2, 29000, 58000, 10),
+  trongThieuTV_('Bột Matcha Test', 'Gói', 2, 120000, 240000, '', '', 0, '', '', 0, 2),
+  trongThieuTV_('Trân châu đen Test', 'Gói', '', 0, 0, 5, 48000, 240000, '', '', 0, 5)
+])), '11-8');
+xlsxUtils.book_append_sheet(wbExcel, xlsxUtils.aoa_to_sheet([['ghi chú tự do, không phải ngày']]), 'GhiChu');
+const fileBase64 = xlsxWrite(wbExcel, { type: 'base64', bookType: 'xlsx' });
+
+const soHangTruoc = docSheet('DanhMucHang').length;
+const soKhoTruoc = docSheet('KiemKho').length;
+
+let xemTruoc = await must(tkQL, 'ql.nhapKhoExcel', { fileBase64 });
+ok('đọc đúng 2 ngày hợp lệ', xemTruoc.soNgay === 2, xemTruoc.soNgay);
+ok('khoảng ngày đúng 2026-08-10 → 2026-08-11',
+   xemTruoc.tuNgay === '2026-08-10' && xemTruoc.denNgay === '2026-08-11', xemTruoc);
+ok('đếm đúng 5 dòng kiểm kho', xemTruoc.soDong === 5, xemTruoc.soDong);
+ok('nhận diện đúng 2 mặt hàng mới', xemTruoc.soHangMoi === 2, xemTruoc.tenHangMoi);
+ok('báo bỏ qua sheet "GhiChu"', xemTruoc.sheetBoQua.includes('GhiChu'), xemTruoc.sheetBoQua);
+ok('xem trước KHÔNG ghi gì vào danh mục', docSheet('DanhMucHang').length === soHangTruoc);
+ok('xem trước KHÔNG ghi gì vào kiểm kho', docSheet('KiemKho').length === soKhoTruoc);
+
+const kq = await must(tkQL, 'ql.nhapKhoExcel', { fileBase64, xacNhan: true });
+ok('nhập thành công', kq.soDong === 5 && kq.soHangMoi === 2, kq);
+ok('tạo đúng 2 mặt hàng mới trong danh mục',
+   docSheet('DanhMucHang').length === soHangTruoc + 2, docSheet('DanhMucHang').length);
+ok('không tạo trùng mặt hàng đã có (Sữa tươi)',
+   docSheet('DanhMucHang').filter(x => x.tenHang === 'Sữa tươi').length === 1);
+ok('ghi đúng 5 dòng kiểm kho mới',
+   docSheet('KiemKho').length === soKhoTruoc + 5, docSheet('KiemKho').length);
+
+const dong10 = docSheet('KiemKho').filter(x => x.ngay === '2026-08-10');
+const suaTuoi10 = dong10.find(x => x.tenHang === 'Sữa tươi');
+ok('ngày 10-8 lấy đúng tồn trước/nhập/thực tế của Sữa tươi',
+   Number(suaTuoi10.tonTruoc) === 5 && Number(suaTuoi10.nhapThem) === 10 && Number(suaTuoi10.thucTe) === 12,
+   suaTuoi10);
+ok('hao hụt tính đúng 5+10-12=3', Number(suaTuoi10.haoHut) === 3, suaTuoi10.haoHut);
+
+const matcha10 = dong10.find(x => x.tenHang === 'Bột Matcha Test');
+const hangMatcha = docSheet('DanhMucHang').find(x => x.tenHang === 'Bột Matcha Test');
+ok('mặt hàng mới lấy đơn giá từ cột Nhập khi cột Kho = 0',
+   Number(hangMatcha.giaVon) === 120000, hangMatcha.giaVon);
+ok('mặt hàng mới thuộc nhóm "Nhập từ Excel"', hangMatcha.nhomHang === 'Nhập từ Excel');
+
+const dong11 = docSheet('KiemKho').filter(x => x.ngay === '2026-08-11');
+ok('ngày 11-8 có đủ 3 mặt hàng (kể cả mặt hàng mới xuất hiện)', dong11.length === 3, dong11.length);
+ok('cùng mã hàng Bột Matcha Test dùng lại giữa 2 ngày',
+   dong10.find(x => x.tenHang === 'Bột Matcha Test').maHang ===
+   dong11.find(x => x.tenHang === 'Bột Matcha Test').maHang);
+
+ok('quản lý xem lại được qua ql.kho',
+   (await must(tkQL, 'ql.kho', { tuNgay: '2026-08-01', denNgay: '2026-08-31' })).phieu.length >= 2);
+
+const soKhoSauLan1 = docSheet('KiemKho').length;
+const xemTruocLan2 = await must(tkQL, 'ql.nhapKhoExcel', { fileBase64 });
+ok('nhập lại đúng file cũ → báo cả 2 ngày đã nhập trước đó',
+   xemTruocLan2.ngayTrungLap.length === 2, xemTruocLan2.ngayTrungLap);
+ok('nhập lại đúng file cũ, xem trước không lấy dòng nào', xemTruocLan2.soDong === 0, xemTruocLan2);
+ok('xác nhận lại đúng file cũ bị chặn, không tạo dữ liệu trùng',
+   (await api(tkQL, 'ql.nhapKhoExcel', { fileBase64, xacNhan: true })).ok === false);
+ok('kiểm kho KHÔNG bị nhân đôi sau khi nhập trùng file',
+   docSheet('KiemKho').length === soKhoSauLan1, docSheet('KiemKho').length);
+
+ok('nhân viên không gọi được API nhập Excel',
+   (await api(tkNV, 'ql.nhapKhoExcel', { fileBase64 })).ok === false);
+ok('file rác bị từ chối với thông báo rõ ràng',
+   (await api(tkQL, 'ql.nhapKhoExcel', { fileBase64: 'khong-phai-file-excel' })).ok === false);
 
 console.log('\n───────────────');
 console.log(dat + ' đạt / ' + hong + ' lỗi');

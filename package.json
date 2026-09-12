@@ -9,5 +9,8 @@
   },
   "scripts": {
     "test": "node kiem-thu/test.js"
+  },
+  "dependencies": {
+    "xlsx": "https://cdn.sheetjs.com/xlsx-latest/xlsx-latest.tgz"
   }
 }
