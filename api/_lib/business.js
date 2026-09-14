@@ -441,6 +441,8 @@ export function khoDanhMuc_() {
 export function tonGanNhat_() {
   const map = {};
   readAll_(SHEETS.KIEMKHO).forEach(r => {
+    const tt = String(r.trangThaiDuyet || '').trim();
+    if (tt && tt !== 'DaDuyet') return; // Chỉ đếm phiếu đã duyệt hoặc phiếu cũ chưa có cột
     const ma = String(r.maHang).trim();
     const stamp = String(r.thoiGian || '');
     if (!map[ma] || stamp >= map[ma].stamp) map[ma] = { stamp, thucTe: num_(r.thucTe) };
@@ -511,7 +513,10 @@ export function khoGui_(nv, p) {
       maHang: ma, tenHang: h.tenHang, donVi: h.donVi,
       tonTruoc, nhapThem: nhap, thucTe, haoHut: hao,
       duoiDinhMuc: duoi ? 'TRUE' : 'FALSE',
-      ghiChu: String(it.ghiChu || '')
+      ghiChu: String(it.ghiChu || ''),
+      trangThaiDuyet: 'ChoDuyet',
+      nguoiDuyet: '',
+      thoiGianDuyet: ''
     });
   });
 
@@ -534,6 +539,7 @@ export function gomPhieuKho_(rows) {
       map[id] = {
         id, thoiGian: String(r.thoiGian || ''), ngay: dstr_(r.ngay),
         maCa: String(r.maCa || ''), maNV: String(r.maNV || ''), hoTen: String(r.hoTen || ''),
+        trangThaiDuyet: String(r.trangThaiDuyet || ''),
         soMatHang: 0, soCanhBao: 0, items: []
       };
     }
@@ -554,6 +560,37 @@ export function khoLichSu_(nv, p) {
   const den = dstr_(p.denNgay) || today_();
   const rows = readAll_(SHEETS.KIEMKHO).filter(r => trongKhoang_(r.ngay, tu, den));
   return { tu, den, phieu: gomPhieuKho_(rows).slice(0, 60) };
+}
+
+export function qlDuyetKiemKho_(nv, p) {
+  const id = String(p.id || '').trim();
+  if (!id) throw new Error('Thiếu mã phiếu kiểm kho.');
+  const duyet = p.duyet !== false;
+  const tt = duyet ? 'DaDuyet' : 'TuChoi';
+
+  return withLock_(() => {
+    const rows = readAll_(SHEETS.KIEMKHO);
+    let dem = 0;
+    rows.forEach(r => {
+      if (String(r.id) !== id) return;
+      patchRow_(SHEETS.KIEMKHO, r._row, {
+        trangThaiDuyet: tt,
+        nguoiDuyet: nv.maNV,
+        thoiGianDuyet: nowStamp_()
+      });
+      dem++;
+    });
+    if (!dem) throw new Error('Không tìm thấy phiếu kiểm kho ' + id);
+    ghiNhatKy_(nv, duyet ? 'DuyetKiemKho' : 'TuChoiKiemKho', id + ' — ' + dem + ' dòng');
+    return { thongBao: duyet ? 'Đã duyệt phiếu kiểm kho.' : 'Đã từ chối phiếu kiểm kho.' };
+  });
+}
+
+export function qlDsPhieuChoDuyet_() {
+  const rows = readAll_(SHEETS.KIEMKHO).filter(r =>
+    String(r.trangThaiDuyet || '').trim() === 'ChoDuyet'
+  );
+  return { phieu: gomPhieuKho_(rows) };
 }
 
 /* ================= KIỂM KHO: NHẬP TỪ EXCEL =================
@@ -718,7 +755,10 @@ export function qlNhapKhoExcel_(nv, p) {
         maHang: ma, tenHang: h.tenHang || ten, donVi: h.donVi || it.donVi || '',
         tonTruoc: it.tonTruoc, nhapThem: it.nhapThem, thucTe: it.thucTe, haoHut: hao,
         duoiDinhMuc: duoi ? 'TRUE' : 'FALSE',
-        ghiChu: String(p.ghiChu || '')
+        ghiChu: String(p.ghiChu || ''),
+        trangThaiDuyet: 'DaDuyet',
+        nguoiDuyet: nv.maNV,
+        thoiGianDuyet: nowStamp_()
       });
     });
   });
@@ -1500,10 +1540,34 @@ export function qlKho_(nv, p) {
     return x;
   }).sort((a, b) => b.tienHao - a.tienHao);
 
+  // Thống kê theo nhóm hàng cho biểu đồ donut
+  const theoNhom = {};
+  thongKe.forEach(x => {
+    const nhom = dm[x.maHang] ? dm[x.maHang].nhomHang || 'Khác' : 'Khác';
+    theoNhom[nhom] = (theoNhom[nhom] || 0) + x.tienHao;
+  });
+  const nhomChart = Object.entries(theoNhom)
+    .map(([ten, tien]) => ({ ten, tien }))
+    .sort((a, b) => b.tien - a.tien);
+
+  // Đếm phiếu chờ duyệt
+  const tatCaKho = readAll_(SHEETS.KIEMKHO);
+  const phieuChoDuyet = gomPhieuKho_(
+    tatCaKho.filter(r => String(r.trangThaiDuyet || '').trim() === 'ChoDuyet')
+  );
+
+  // Đếm thống kê tổng
+  const soMHDuoiDM = thongKe.filter(x => x.duoiDinhMuc).length;
+  const soMHKiem = thongKe.length;
+
   return {
     tu, den,
     phieu: gomPhieuKho_(rows).slice(0, 60),
     thongKe,
+    nhomChart,
+    phieuChoDuyet,
+    soMHKiem,
+    soMHDuoiDM,
     danhMuc: readAll_(SHEETS.HANG).map(r => ({
       maHang: String(r.maHang).trim(), tenHang: String(r.tenHang || ''), donVi: String(r.donVi || ''),
       nhomHang: String(r.nhomHang || ''), tonDinhMuc: num_(r.tonDinhMuc), giaVon: num_(r.giaVon),
@@ -1513,9 +1577,16 @@ export function qlKho_(nv, p) {
 }
 
 export function qlLuuHang_(nv, p) {
-  const ma = String(p.maHang || '').trim().toUpperCase();
-  if (!/^[A-Z0-9_-]{2,20}$/.test(ma)) throw new Error('Mã hàng chỉ gồm chữ/số, 2–20 ký tự (vd: H013).');
   if (!String(p.tenHang || '').trim()) throw new Error('Chưa nhập tên hàng.');
+  let ma = String(p.maHang || '').trim().toUpperCase();
+  if (!ma) {
+    // Tự tạo mã từ tên hàng
+    const daDung = new Set();
+    readAll_(SHEETS.HANG).forEach(r => daDung.add(String(r.maHang).trim().toUpperCase()));
+    ma = taoMaHangTuTen_(String(p.tenHang).trim(), daDung);
+  } else if (!/^[A-Z0-9_-]{2,20}$/.test(ma)) {
+    throw new Error('Mã hàng chỉ gồm chữ/số, 2–20 ký tự (vd: H013).');
+  }
 
   const obj = {
     maHang: ma, tenHang: String(p.tenHang).trim(), donVi: String(p.donVi || '').trim(),

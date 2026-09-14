@@ -83,6 +83,8 @@ const THAO_TAC = {
   'ql.xoaThuongPhat': { ql: true, sheets: [TP], fn: (nv, p) => B.qlXoaThuongPhat_(nv, p) },
 
   'ql.kho':      { ql: true, sheets: [KHO, HANG], fn: (nv, p) => B.qlKho_(nv, p) },
+  'ql.duyetKiemKho': { ql: true, sheets: [KHO], fn: (nv, p) => B.qlDuyetKiemKho_(nv, p) },
+  'ql.dsPhieuChoDuyet': { ql: true, sheets: [KHO], fn: () => B.qlDsPhieuChoDuyet_() },
   'ql.luuHang':  { ql: true, sheets: [HANG],      fn: (nv, p) => B.qlLuuHang_(nv, p) },
   'ql.giaoCa':   { ql: true, sheets: [GC],        fn: (nv, p) => B.qlGiaoCa_(nv, p) },
 

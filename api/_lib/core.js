@@ -54,7 +54,7 @@ export const HEADERS = {
   ],
   [SHEETS.KIEMKHO]: [
     'id', 'thoiGian', 'ngay', 'maCa', 'maNV', 'hoTen', 'maHang', 'tenHang', 'donVi',
-    'tonTruoc', 'nhapThem', 'thucTe', 'haoHut', 'duoiDinhMuc', 'ghiChu'
+    'tonTruoc', 'nhapThem', 'thucTe', 'haoHut', 'duoiDinhMuc', 'ghiChu', 'trangThaiDuyet', 'nguoiDuyet', 'thoiGianDuyet'
   ],
   [SHEETS.GIAOCA]: [
     'id', 'thoiGian', 'ngay', 'maCa', 'maNVGiao', 'tenNVGiao', 'maNVNhan', 'tenNVNhan',

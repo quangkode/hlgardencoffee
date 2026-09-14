@@ -24,6 +24,7 @@
   --sh:0 1px 2px rgba(60,40,20,.06),0 4px 14px rgba(60,40,20,.06);
   --r:16px; --r2:12px;
   --safe-b: env(safe-area-inset-bottom, 0px);
+  --hoverbg:rgba(0,0,0,.03);
 }
 @media (prefers-color-scheme: dark){
   :root{
@@ -33,6 +34,7 @@
     --ok:#5cc496; --okbg:#163025; --warn:#e0a45f; --warnbg:#332616;
     --err:#f08a75; --errbg:#39201c; --info:#7fb0e8; --infobg:#1a2836;
     --sh:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);
+    --hoverbg:rgba(255,255,255,.05);
   }
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -207,6 +209,51 @@ table.tbl tr:last-child td{border-bottom:0}
 .kho-item .un{font-size:11px;color:var(--tx2)}
 .kho-item .inp{padding:8px;text-align:center;font-size:15px}
 .kho-head{display:grid;grid-template-columns:1fr 72px 72px;gap:8px;font-size:10px;color:var(--tx2);text-transform:uppercase;font-weight:700;padding-bottom:4px;border-bottom:1px solid var(--line)}
+
+/* ===== Dashboard KPI & Charts ===== */
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.kpi-card{background:linear-gradient(135deg,var(--cardbg,var(--card)),var(--bg));border:1px solid var(--line);border-radius:14px;padding:14px 12px;text-align:center;position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;top:-20px;right:-20px;width:60px;height:60px;border-radius:50%;opacity:.08}
+.kpi-card.c1::before{background:var(--brand)}
+.kpi-card.c2::before{background:var(--ok)}
+.kpi-card.c3::before{background:var(--warn)}
+.kpi-card.c4::before{background:var(--err)}
+.kpi-card .kpi-ic{font-size:22px;margin-bottom:4px}
+.kpi-card .kpi-v{font-size:22px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi-card .kpi-l{font-size:10px;color:var(--tx2);text-transform:uppercase;font-weight:600;margin-top:3px;letter-spacing:.3px}
+.bar-chart{margin:8px 0}
+.bar-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);cursor:pointer;transition:background .15s}
+.bar-row:hover{background:var(--hoverbg)}
+.bar-row:last-child{border-bottom:0}
+.bar-row .bar-name{flex:0 0 90px;font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-row .bar-track{flex:1;height:22px;background:var(--line);border-radius:6px;overflow:hidden;position:relative}
+.bar-row .bar-fill{height:100%;border-radius:6px;transition:width .5s ease;min-width:2px}
+.bar-row .bar-val{flex:0 0 80px;text-align:right;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.donut-wrap{display:flex;align-items:center;gap:16px;padding:12px 0}
+.donut{width:90px;height:90px;border-radius:50%;position:relative;flex-shrink:0}
+.donut-hole{position:absolute;top:15px;left:15px;width:60px;height:60px;border-radius:50%;background:var(--cardbg,var(--card));display:flex;align-items:center;justify-content:center;flex-direction:column}
+.donut-hole .dh-v{font-size:14px;font-weight:800}
+.donut-hole .dh-l{font-size:8px;color:var(--tx2);text-transform:uppercase}
+.donut-legend{flex:1}
+.donut-legend .dl-row{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px}
+.donut-legend .dl-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.donut-legend .dl-pct{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums}
+.pending-section{margin-top:16px}
+.pending-card{border:1px solid var(--warn);border-radius:12px;padding:12px;margin-bottom:10px;background:var(--cardbg,var(--card))}
+.pending-card .pc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.pending-card .pc-info{font-size:13px;font-weight:600}
+.pending-card .pc-meta{font-size:11px;color:var(--tx2)}
+.pending-card .pc-actions{display:flex;gap:6px;margin-top:8px}
+.detail-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.35);z-index:200;opacity:0;transition:opacity .25s;pointer-events:none}
+.detail-overlay.show{opacity:1;pointer-events:auto}
+.detail-panel{position:fixed;right:0;top:0;bottom:0;width:340px;max-width:92vw;background:var(--cardbg,var(--card));z-index:201;transform:translateX(100%);transition:transform .3s ease;overflow-y:auto;padding:20px 16px;box-shadow:-4px 0 24px rgba(0,0,0,.15)}
+.detail-panel.show{transform:translateX(0)}
+@media(max-width:600px){.detail-panel{width:100%;top:auto;bottom:0;max-height:85vh;border-radius:18px 18px 0 0;transform:translateY(100%)}.detail-panel.show{transform:translateY(0)}}
+.dp-close{position:absolute;top:12px;right:14px;background:none;border:none;font-size:22px;color:var(--tx2);cursor:pointer;padding:4px}
+.dp-title{font-size:18px;font-weight:800;margin-bottom:4px}
+.dp-sub{font-size:12px;color:var(--tx2);margin-bottom:14px}
+@keyframes fadeNum{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.anim-v{animation:fadeNum .4s ease both}
 
 .dayline{display:flex;align-items:center;gap:8px;margin:14px 2px 6px}
 .dayline .d{font-weight:700;font-size:13px}
@@ -959,23 +1006,27 @@ function veFormKho(d){
 }
 
 function veLichSuKho(){
-  $('#kBody').innerHTML = '<div class="card center muted small">Đang tải…</div>';
+  $('#kBody').innerHTML = '<div class="card center muted small">\u0110ang t\u1ea3i\u2026</div>';
   api('kho.lichSu', {}).then(function(d){
     $('#kBody').innerHTML = d.phieu.length ? d.phieu.map(function(p){
+      var ttDuyet = p.trangThaiDuyet;
+      var badge = ttDuyet === 'ChoDuyet' ? '<span class="chip warn">Ch\u1edd duy\u1ec7t</span>'
+        : ttDuyet === 'TuChoi' ? '<span class="chip err">T\u1eeb ch\u1ed1i</span>'
+        : ttDuyet === 'DaDuyet' ? '<span class="chip ok">\u0110\u00e3 duy\u1ec7t</span>'
+        : '<span class="chip ' + (p.soCanhBao ? 'warn' : 'ok') + '">' + p.soMatHang + ' m\u1eb7t h\u00e0ng' +
+          (p.soCanhBao ? ' \u00b7 ' + p.soCanhBao + ' c\u1ea3nh b\u00e1o' : '') + '</span>';
       return '<div class="card tight">' +
-        '<div class="spread"><div><b>' + h(ngayVN(p.ngay)) + '</b> · ' + h(p.maCa) + '</div>' +
-        '<span class="chip ' + (p.soCanhBao ? 'warn' : 'ok') + '">' + p.soMatHang + ' mặt hàng' +
-        (p.soCanhBao ? ' · ' + p.soCanhBao + ' cảnh báo' : '') + '</span></div>' +
-        '<div class="xs muted">' + h(p.hoTen) + ' · ' + h(p.thoiGian) + '</div>' +
-        '<div class="scrollx mt"><table class="tbl"><tr><th>Hàng</th><th class="right">Trước</th>' +
-        '<th class="right">Nhập</th><th class="right">Thực tế</th><th class="right">Hao</th></tr>' +
+        '<div class="spread"><div><b>' + h(ngayVN(p.ngay)) + '</b> \u00b7 ' + h(p.maCa) + '</div>' + badge + '</div>' +
+        '<div class="xs muted">' + h(p.hoTen) + ' \u00b7 ' + h(p.thoiGian) + '</div>' +
+        '<div class="scrollx mt"><table class="tbl"><tr><th>H\u00e0ng</th><th class="right">Tr\u01b0\u1edbc</th>' +
+        '<th class="right">Nh\u1eadp</th><th class="right">Th\u1ef1c t\u1ebf</th><th class="right">Hao</th></tr>' +
         p.items.map(function(i){
           return '<tr><td>' + h(i.tenHang) + '</td><td class="right">' + i.tonTruoc + '</td>' +
                  '<td class="right">' + i.nhapThem + '</td>' +
                  '<td class="right"' + (i.duoiDinhMuc ? ' style="color:var(--err);font-weight:700"' : '') + '>' + i.thucTe + '</td>' +
                  '<td class="right">' + i.haoHut + '</td></tr>';
         }).join('') + '</table></div></div>';
-    }).join('') : trong('&#128230;', 'Chưa có phiếu kiểm kho nào trong 7 ngày qua.');
+    }).join('') : trong('&#128230;', 'Ch\u01b0a c\u00f3 phi\u1ebfu ki\u1ec3m kho n\u00e0o trong 7 ng\u00e0y qua.');
   }).catch(function(e){ $('#kBody').innerHTML = '<div class="card">' + h(e.message) + '</div>'; });
 }
 
@@ -1495,15 +1546,63 @@ VIEWS.q_kho = function(root, tham){
         '<label class="f" style="margin:0"><span>Từ</span><input class="inp" type="date" id="kTu" value="' + h(tu) + '"></label>' +
         '<label class="f" style="margin:0"><span>Đến</span><input class="inp" type="date" id="kDen" value="' + h(den) + '"></label>' +
       '</div><button class="btn sm block mt" id="kLoc">Xem</button></div>' +
-      '<div class="tabs"><button class="on" id="kT1">Tồn &amp; hao</button><button id="kT2">Phiếu kiểm</button><button id="kT3">Danh mục</button></div>' +
-      '<div id="kBody"></div>';
+      '<div class="tabs"><button class="on" id="kT1">Báo cáo tổng</button><button id="kT2">Phiếu kiểm</button><button id="kT3">Danh mục</button></div>' +
+      '<div id="kBody"></div>' +
+      '<div class="detail-overlay" id="kOverlay"></div>' +
+      '<div class="detail-panel" id="kDetail"></div>';
     $('#kLoc').onclick = function(){ go('q_kho', { tu: $('#kTu').value, den: $('#kDen').value }); };
     $('#kT1').onclick = function(){ tabKhoQL(1); };
     $('#kT2').onclick = function(){ tabKhoQL(2); };
     $('#kT3').onclick = function(){ tabKhoQL(3); };
+    $('#kOverlay').onclick = dongChiTietKho;
     tabKhoQL(1);
   });
 };
+
+function dongChiTietKho(){
+  var o = $('#kOverlay'), p = $('#kDetail');
+  if (o) o.classList.remove('show');
+  if (p) p.classList.remove('show');
+}
+
+function moChiTietKho(x){
+  var p = $('#kDetail'), o = $('#kOverlay');
+  if (!p || !o) return;
+  // Render detail panel for item x
+  var d = S.cache.kho;
+  // Find all phieu entries for this item
+  var lichSu = [];
+  (d.phieu || []).forEach(function(ph){
+    (ph.items || []).forEach(function(it){
+      if (it.maHang === x.maHang) {
+        lichSu.push({ ngay: ph.ngay, maCa: ph.maCa, hoTen: ph.hoTen, tonTruoc: it.tonTruoc, nhapThem: it.nhapThem, thucTe: it.thucTe, haoHut: it.haoHut });
+      }
+    });
+  });
+
+  p.innerHTML =
+    '<button class="dp-close" onclick="dongChiTietKho()">&times;</button>' +
+    '<div class="dp-title">' + h(x.tenHang) + '</div>' +
+    '<div class="dp-sub">' + h(x.donVi) + (x.tonDinhMuc ? ' \u00b7 \u0110M ' + x.tonDinhMuc : '') + '</div>' +
+    '<div class="grid2 mb">' +
+      '<div class="stat' + (x.duoiDinhMuc ? ' err' : '') + '"><div class="v">' + x.tonHienTai + '</div><div class="l">Tồn hiện tại</div></div>' +
+      '<div class="stat err"><div class="v">' + x.tongHao + '</div><div class="l">Hao trong kỳ</div></div>' +
+    '</div>' +
+    '<div class="stat err mb"><div class="v" style="font-size:16px">' + tien(x.tienHao) + '</div><div class="l">Giá trị hao hụt</div></div>' +
+    '<div class="sec-title">Lịch sử kiểm trong kỳ (' + lichSu.length + ')</div>' +
+    (lichSu.length ? '<div class="card tight"><div class="scrollx"><table class="tbl">' +
+      '<tr><th>Ngày</th><th>Ca</th><th class="right">Tr\u01b0\u1edbc</th><th class="right">Nh\u1eadp</th><th class="right">Th\u1ef1c</th><th class="right">Hao</th></tr>' +
+      lichSu.map(function(r){
+        return '<tr><td class="nowrap">' + h(ngayNgan(r.ngay)) + '</td><td>' + h(r.maCa) + '</td>' +
+          '<td class="right">' + r.tonTruoc + '</td><td class="right">' + r.nhapThem + '</td>' +
+          '<td class="right">' + r.thucTe + '</td><td class="right">' + r.haoHut + '</td></tr>';
+      }).join('') + '</table></div></div>' : '<div class="small muted">Không có dữ liệu.</div>');
+
+  o.classList.add('show');
+  p.classList.add('show');
+}
+
+var CHART_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#06b6d4','#84cc16'];
 
 function tabKhoQL(n){
   ['#kT1','#kT2','#kT3'].forEach(function(s, i){ $(s).className = (i + 1 === n) ? 'on' : ''; });
@@ -1511,71 +1610,137 @@ function tabKhoQL(n){
 
   if (n === 1){
     var tongTien = d.thongKe.reduce(function(s, x){ return s + x.tienHao; }, 0);
+    var maxTien = d.thongKe.length ? d.thongKe[0].tienHao : 1;
+    var top5 = d.thongKe.slice(0, 7);
+
+    // Donut chart data
+    var nhomData = d.nhomChart || [];
+    var tongNhom = nhomData.reduce(function(s, x){ return s + x.tien; }, 0) || 1;
+    var gradParts = [], cumPct = 0;
+    nhomData.forEach(function(x, i){
+      var pct = (x.tien / tongNhom) * 100;
+      var c = CHART_COLORS[i % CHART_COLORS.length];
+      gradParts.push(c + ' ' + cumPct.toFixed(1) + '% ' + (cumPct + pct).toFixed(1) + '%');
+      cumPct += pct;
+    });
+    var donutGrad = gradParts.length ? 'conic-gradient(' + gradParts.join(',') + ')' : 'conic-gradient(var(--line) 0% 100%)';
+
+    // Pending count
+    var soChoDuyet = (d.phieuChoDuyet || []).length;
+
     b.innerHTML =
-      '<div class="stat err mb"><div class="v" style="font-size:18px">' + tien(tongTien) + '</div>' +
-      '<div class="l">Giá trị hàng đã dùng / hao trong kỳ</div></div>' +
-      (d.thongKe.length ? '<div class="card tight"><div class="scrollx"><table class="tbl">' +
-        '<tr><th>Mặt hàng</th><th class="right">Tồn</th><th class="right">Hao kỳ</th><th class="right">Tiền</th></tr>' +
-        d.thongKe.map(function(x){
-          return '<tr><td>' + h(x.tenHang) +
-            (x.duoiDinhMuc ? ' <span class="chip err">sắp hết</span>' : '') + '</td>' +
-            '<td class="right">' + x.tonHienTai + ' <span class="xs muted">' + h(x.donVi) + '</span></td>' +
-            '<td class="right">' + x.tongHao + '</td>' +
-            '<td class="right nowrap">' + tien(x.tienHao) + '</td></tr>';
-        }).join('') + '</table></div></div>' : trong('&#128230;', 'Chưa có dữ liệu kiểm kho trong kỳ.'));
+      // KPI Cards
+      '<div class="kpi-grid">' +
+        '<div class="kpi-card c4"><div class="kpi-ic">&#128176;</div><div class="kpi-v anim-v" style="color:var(--err)">' + tien(tongTien) + '</div><div class="kpi-l">Hao hụt</div></div>' +
+        '<div class="kpi-card c2"><div class="kpi-ic">&#128230;</div><div class="kpi-v anim-v">' + (d.soMHKiem || 0) + '</div><div class="kpi-l">Mặt hàng</div></div>' +
+        '<div class="kpi-card c3"><div class="kpi-ic">&#9888;</div><div class="kpi-v anim-v" style="color:var(--warn)">' + (d.soMHDuoiDM || 0) + '</div><div class="kpi-l">Sắp hết</div></div>' +
+      '</div>' +
+
+      // Bar chart - Top hao hut
+      (top5.length ? '<div class="card"><div class="spread" style="margin-bottom:8px"><b style="font-size:13px">Top hao hụt</b><span class="xs muted">Bấm \u0111ể xem chi tiết</span></div>' +
+        '<div class="bar-chart">' + top5.map(function(x, i){
+          var pct = maxTien > 0 ? Math.max(2, (x.tienHao / maxTien) * 100) : 2;
+          var c = CHART_COLORS[i % CHART_COLORS.length];
+          return '<div class="bar-row" onclick="moChiTietKho(' + JSON.stringify(x).replace(/"/g,'&quot;') + ')">' +
+            '<div class="bar-name">' + h(x.tenHang) + '</div>' +
+            '<div class="bar-track"><div class="bar-fill" style="width:' + pct.toFixed(0) + '%;background:' + c + '"></div></div>' +
+            '<div class="bar-val">' + tien(x.tienHao) + '</div></div>';
+        }).join('') + '</div></div>' : '') +
+
+      // Donut chart - Theo nhom
+      (nhomData.length ? '<div class="card"><b style="font-size:13px">Hao hụt theo nhóm</b>' +
+        '<div class="donut-wrap">' +
+          '<div class="donut" style="background:' + donutGrad + '"><div class="donut-hole"><div class="dh-v">' + nhomData.length + '</div><div class="dh-l">nhóm</div></div></div>' +
+          '<div class="donut-legend">' + nhomData.map(function(x, i){
+            var pct = ((x.tien / tongNhom) * 100).toFixed(0);
+            return '<div class="dl-row"><div class="dl-dot" style="background:' + CHART_COLORS[i % CHART_COLORS.length] + '"></div>' +
+              '<span>' + h(x.ten) + '</span><span class="dl-pct">' + tien(x.tien) + ' (' + pct + '%)</span></div>';
+          }).join('') + '</div></div></div>' : '') +
+
+      // Pending approval section
+      (soChoDuyet > 0 ? '<div class="pending-section"><div class="sec-title">Phiếu chờ duyệt <span class="chip warn">' + soChoDuyet + '</span></div>' +
+        d.phieuChoDuyet.map(function(p){
+          return '<div class="pending-card">' +
+            '<div class="pc-top"><div class="pc-info">' + h(p.hoTen) + '</div>' +
+            '<span class="chip warn">' + p.soMatHang + ' MH' + (p.soCanhBao ? ' \u00b7 ' + p.soCanhBao + ' \u26a0' : '') + '</span></div>' +
+            '<div class="pc-meta">' + h(ngayVN(p.ngay)) + ' \u00b7 ' + h(p.maCa) + ' \u00b7 ' + h(p.thoiGian) + '</div>' +
+            '<div class="pc-actions">' +
+              '<button class="btn ok grow sm" onclick="duyetKiemKho(\'' + p.id + '\',true)">\u2713 Duyệt</button>' +
+              '<button class="btn err sm" onclick="duyetKiemKho(\'' + p.id + '\',false)">\u2717 Từ chối</button></div></div>';
+        }).join('') + '</div>' : '');
 
   } else if (n === 2){
     b.innerHTML = d.phieu.length ? d.phieu.map(function(p){
-      return '<div class="card tight"><div class="spread">' +
-        '<div><b>' + h(ngayVN(p.ngay)) + '</b> · ' + h(p.maCa) + ' · ' + h(p.hoTen) + '</div>' +
-        '<span class="chip ' + (p.soCanhBao ? 'warn' : 'ok') + '">' + p.soMatHang + ' MH</span></div>' +
+      var ttDuyet = p.trangThaiDuyet;
+      var badge = ttDuyet === 'ChoDuyet' ? '<span class="chip warn">Chờ duyệt</span>'
+        : ttDuyet === 'TuChoi' ? '<span class="chip err">Từ chối</span>'
+        : ttDuyet === 'DaDuyet' ? '<span class="chip ok">Đ\u00e3 duyệt</span>'
+        : '<span class="chip grey">c\u0169</span>';
+      return '<div class="card tight">' +
+        '<div class="spread"><div><b>' + h(ngayVN(p.ngay)) + '</b> \u00b7 ' + h(p.maCa) + ' \u00b7 ' + h(p.hoTen) + '</div>' +
+        badge + '</div>' +
         '<div class="scrollx mt"><table class="tbl">' +
-        '<tr><th>Hàng</th><th class="right">Trước</th><th class="right">Nhập</th><th class="right">Thực</th><th class="right">Hao</th></tr>' +
+        '<tr><th>H\u00e0ng</th><th class="right">Tr\u01b0\u1edbc</th><th class="right">Nh\u1eadp</th><th class="right">Th\u1ef1c</th><th class="right">Hao</th></tr>' +
         p.items.map(function(i){
           return '<tr><td>' + h(i.tenHang) + '</td><td class="right">' + i.tonTruoc + '</td>' +
             '<td class="right">' + i.nhapThem + '</td>' +
             '<td class="right"' + (i.duoiDinhMuc ? ' style="color:var(--err);font-weight:700"' : '') + '>' + i.thucTe + '</td>' +
             '<td class="right">' + i.haoHut + '</td></tr>';
         }).join('') + '</table></div>' +
+        (ttDuyet === 'ChoDuyet' ? '<div class="pc-actions mt">' +
+          '<button class="btn ok grow sm" onclick="duyetKiemKho(\'' + p.id + '\',true)">\u2713 Duyệt</button>' +
+          '<button class="btn err sm" onclick="duyetKiemKho(\'' + p.id + '\',false)">\u2717 Từ chối</button></div>' : '') +
         (p.items.filter(function(i){ return i.ghiChu; }).length
           ? '<div class="xs muted mt">' + h(p.items.filter(function(i){ return i.ghiChu; })
-              .map(function(i){ return i.tenHang + ': ' + i.ghiChu; }).join(' · ')) + '</div>' : '') +
+              .map(function(i){ return i.tenHang + ': ' + i.ghiChu; }).join(' \u00b7 ')) + '</div>' : '') +
         '</div>';
-    }).join('') : trong('&#128230;', 'Chưa có phiếu kiểm kho.');
+    }).join('') : trong('&#128230;', 'Ch\u01b0a c\u00f3 phi\u1ebfu ki\u1ec3m kho.');
 
   } else {
     b.innerHTML =
-      '<div class="row mb"><button class="btn grow" onclick="suaHang(null)">&#10133; Thêm mặt hàng</button>' +
-      '<button class="btn ghost grow" onclick="moNhapExcelKho()">&#128229; Nhập từ Excel</button></div>' +
+      '<div class="row mb"><button class="btn grow" onclick="suaHang(null)">&#10133; Th\u00eam m\u1eb7t h\u00e0ng</button>' +
+      '<button class="btn ghost grow" onclick="moNhapExcelKho()">&#128229; Nh\u1eadp t\u1eeb Excel</button></div>' +
       '<div class="card tight">' + d.danhMuc.map(function(x){
         return '<div class="item" style="cursor:pointer" onclick="suaHang(' + JSON.stringify(x).replace(/"/g,'&quot;') + ')">' +
           '<div class="grow"><div class="t1">' + h(x.tenHang) +
-          (x.trangThai !== 'HoatDong' ? ' <span class="chip grey">ngừng</span>' : '') + '</div>' +
-          '<div class="t2">' + h(x.maHang) + ' · ' + h(x.donVi) + ' · ' + h(x.nhomHang) +
-          ' · ĐM ' + x.tonDinhMuc + ' · ' + tien(x.giaVon) + '</div></div>' +
+          (x.trangThai !== 'HoatDong' ? ' <span class="chip grey">ng\u1eebng</span>' : '') + '</div>' +
+          '<div class="t2">' + h(x.donVi) + ' \u00b7 ' + h(x.nhomHang) +
+          ' \u00b7 \u0110M ' + x.tonDinhMuc + ' \u00b7 ' + tien(x.giaVon) + '</div></div>' +
           '<span class="muted">&rsaquo;</span></div>';
       }).join('') + '</div>';
   }
 }
 
+function duyetKiemKho(id, duyet){
+  var msg = duyet ? 'Duyệt phiếu kiểm kho này?' : 'Từ chối phiếu kiểm kho này?';
+  xacNhan(msg, { ok: duyet ? 'Duyệt' : 'Từ chối', nguyHiem: !duyet }).then(function(y){
+    if (!y) return;
+    api('ql.duyetKiemKho', { id: id, duyet: duyet }).then(function(r){
+      toast(r.thongBao, 'ok'); lamMoi();
+    }).catch(function(e){ toast(e.message, 'err'); });
+  });
+}
+
 function suaHang(x){
-  x = x || { maHang:'', tenHang:'', donVi:'', nhomHang:'Nguyên liệu', tonDinhMuc:0, giaVon:0, trangThai:'HoatDong' };
+  x = x || { maHang:'', tenHang:'', donVi:'', nhomHang:'Nguy\u00ean li\u1ec7u', tonDinhMuc:0, giaVon:0, trangThai:'HoatDong' };
+  var isNew = !x.maHang;
   moSheet({
-    title: x.maHang ? '📦 ' + x.tenHang : '📦 Thêm mặt hàng',
+    title: isNew ? '\ud83d\udce6 Th\u00eam m\u1eb7t h\u00e0ng' : '\ud83d\udce6 ' + x.tenHang,
     body: fForm([
-      { k:'maHang', label:'Mã hàng', type:'text', value:x.maHang, ph:'VD: H013', attrs: x.maHang ? 'readonly' : '' },
-      { k:'tenHang', label:'Tên hàng', type:'text', value:x.tenHang },
-      { k:'donVi', label:'Đơn vị tính', type:'text', value:x.donVi, ph:'kg / lon / cái…' },
-      { k:'nhomHang', label:'Nhóm', type:'select', value:x.nhomHang,
-        options:['Nguyên liệu','Vật tư','Hàng bán','Khác'] },
-      { k:'tonDinhMuc', label:'Tồn định mức (cảnh báo khi thấp hơn)', type:'number', value:x.tonDinhMuc },
-      { k:'giaVon', label:'Giá vốn / đơn vị', type:'number', value:x.giaVon },
-      { k:'trangThai', label:'Trạng thái', type:'select', value:x.trangThai,
-        options:[{ v:'HoatDong', t:'Đang theo dõi' }, { v:'NgungTheoDoi', t:'Ngừng theo dõi' }] }
-    ]) + '<button class="btn block" id="_hOk">Lưu</button>',
+      { k:'tenHang', label:'T\u00ean h\u00e0ng', type:'text', value:x.tenHang },
+      { k:'donVi', label:'\u0110\u01a1n v\u1ecb t\u00ednh', type:'text', value:x.donVi, ph:'kg / lon / c\u00e1i\u2026' },
+      { k:'nhomHang', label:'Nh\u00f3m', type:'select', value:x.nhomHang,
+        options:['Nguy\u00ean li\u1ec7u','V\u1eadt t\u01b0','H\u00e0ng b\u00e1n','Kh\u00e1c'] },
+      { k:'tonDinhMuc', label:'T\u1ed3n \u0111\u1ecbnh m\u1ee9c (c\u1ea3nh b\u00e1o khi th\u1ea5p h\u01a1n)', type:'number', value:x.tonDinhMuc },
+      { k:'giaVon', label:'Gi\u00e1 v\u1ed1n / \u0111\u01a1n v\u1ecb', type:'number', value:x.giaVon },
+      { k:'trangThai', label:'Tr\u1ea1ng th\u00e1i', type:'select', value:x.trangThai,
+        options:[{ v:'HoatDong', t:'\u0110ang theo d\u00f5i' }, { v:'NgungTheoDoi', t:'Ng\u1eebng theo d\u00f5i' }] }
+    ]) + '<button class="btn block" id="_hOk">L\u01b0u</button>',
     onMount: function(root){
       $('#_hOk').onclick = function(){
-        api('ql.luuHang', fRead(root)).then(function(r){ dongSheet(); toast(r.thongBao, 'ok'); lamMoi(); })
+        var data = fRead(root);
+        data.maHang = x.maHang || ''; // empty = auto-generate
+        api('ql.luuHang', data).then(function(r){ dongSheet(); toast(r.thongBao, 'ok'); lamMoi(); })
           .catch(function(e){ toast(e.message, 'err'); });
       };
     }

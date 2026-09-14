@@ -265,12 +265,18 @@ ok('ghi 2 dòng kiểm kho', docSheet('KiemKho').length === 2);
 ok('hao hụt lần đầu = 0+10-8 = 2',
    Number(docSheet('KiemKho').find(x => x.maHang === 'H001').haoHut) === 2);
 
+// Duyệt phiếu kiểm kho để tồn được cập nhật
+await must(tkQL, 'ql.duyetKiemKho', { id: r.maPhieu, duyet: true });
+
 datGio('2026-08-29T11:00:00Z');
-await must(tkNV, 'kho.gui', { maCa: 'CA2', items: [{ maHang: 'H001', nhapThem: 0, thucTe: 5 }] });
+const r2kho = await must(tkNV, 'kho.gui', { maCa: 'CA2', items: [{ maHang: 'H001', nhapThem: 0, thucTe: 5 }] });
 const kk = docSheet('KiemKho').filter(x => x.maHang === 'H001');
 const lan2 = kk[kk.length - 1];
 ok('lần 2 lấy tồn trước = 8', Number(lan2.tonTruoc) === 8, lan2.tonTruoc);
 ok('lần 2 hao hụt = 8+0-5 = 3', Number(lan2.haoHut) === 3, lan2.haoHut);
+
+// Duyệt phiếu lần 2
+await must(tkQL, 'ql.duyetKiemKho', { id: r2kho.maPhieu, duyet: true });
 
 const khoQL = await must(tkQL, 'ql.kho', { tuNgay: '2026-08-01', denNgay: '2026-08-31' });
 const h001 = khoQL.thongKe.find(x => x.maHang === 'H001');
