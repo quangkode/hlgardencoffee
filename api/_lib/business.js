@@ -1796,6 +1796,7 @@ export function qlKho_(nv, p) {
       theoHang[ma] = {
         maHang: ma, tenHang: String(r.tenHang || ''), donVi: String(r.donVi || ''),
         tongHao: 0, soLanKiem: 0, tonHienTai: ton[ma] ? ton[ma].thucTe : 0,
+        nhomHang: dm[ma] ? dm[ma].nhomHang || 'Khác' : 'Khác',
         tonDinhMuc: dm[ma] ? dm[ma].tonDinhMuc : 0, giaVon: dm[ma] ? dm[ma].giaVon : 0
       };
     }

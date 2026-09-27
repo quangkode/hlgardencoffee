@@ -1738,6 +1738,30 @@ function bangTonKho(rows, cotDau){
     }).join('') + '</table>';
 }
 
+var _locTK = { q: '', nhom: '', het: false };
+
+function veDsTonKho(){
+  var L = _locTK, q = boDau(L.q);
+  var tatCa = S.cache.tonKhoDayDu || [];
+  var ds = tatCa.filter(function(x){
+    if (q && boDau(x.tenHang).indexOf(q) < 0) return false;
+    if (L.nhom && x.nhomHang !== L.nhom) return false;
+    if (L.het && !x.duoiDinhMuc) return false;
+    return true;
+  });
+  S.cache.dsTonKho = ds;
+  $('#tkDem').textContent = 'Hiện ' + ds.length + ' / ' + tatCa.length + ' mặt hàng';
+  $('#tkList').innerHTML = ds.length
+    ? '<table class="tbl kk"><tr><th>Hàng</th><th>Tồn</th><th>Nhập</th><th>Xuất</th></tr>' +
+      ds.map(function(x, i){
+        return '<tr style="cursor:pointer" onclick="moChiTietKho(S.cache.dsTonKho[' + i + '])">' +
+          '<td>' + h(x.tenHang) + ' <span class="xs muted">' + h(x.donVi) + '</span></td>' +
+          '<td' + (x.duoiDinhMuc ? ' style="color:var(--err);font-weight:700"' : '') + '>' + x.tonHienTai + '</td>' +
+          '<td>' + (x.tongNhap || 0) + '</td><td>' + (x.tongXuat || 0) + '</td></tr>';
+      }).join('') + '</table>'
+    : trong('&#128269;', 'Không có mặt hàng nào khớp bộ lọc.');
+}
+
 var _locPK = { tt: '', nv: '', ca: '', q: '' };
 
 function boDau(x){
@@ -1788,7 +1812,7 @@ function tabKhoQL(n){
     var dsTon = d.thongKe.slice().sort(function(x, y){
       return (y.duoiDinhMuc ? 1 : 0) - (x.duoiDinhMuc ? 1 : 0) || String(x.tenHang).localeCompare(String(y.tenHang), 'vi');
     });
-    S.cache.dsTonKho = dsTon;
+    S.cache.tonKhoDayDu = dsTon;
 
     b.innerHTML =
       '<div class="kpi-grid">' +
@@ -1799,13 +1823,17 @@ function tabKhoQL(n){
 
       (dsTon.length ? '<div class="card"><div class="spread" style="margin-bottom:8px"><b style="font-size:13px">Tồn kho hiện tại</b>' +
         '<span class="xs muted">Bấm vào món để xem chi tiết</span></div>' +
-        '<div class="scrollx"><table class="tbl kk"><tr><th>Hàng</th><th>Tồn</th><th>Nhập</th><th>Xuất</th></tr>' +
-        dsTon.map(function(x, i){
-          return '<tr style="cursor:pointer" onclick="moChiTietKho(S.cache.dsTonKho[' + i + '])">' +
-            '<td>' + h(x.tenHang) + ' <span class="xs muted">' + h(x.donVi) + '</span></td>' +
-            '<td' + (x.duoiDinhMuc ? ' style="color:var(--err);font-weight:700"' : '') + '>' + x.tonHienTai + '</td>' +
-            '<td>' + (x.tongNhap || 0) + '</td><td>' + (x.tongXuat || 0) + '</td></tr>';
-        }).join('') + '</table></div>' +
+        '<input class="inp" id="tkQ" placeholder="Tìm mặt hàng…" value="' + h(_locTK.q) + '">' +
+        '<div class="grid2 mt">' +
+          '<select class="inp" id="tkNhom"><option value="">Mọi nhóm</option>' +
+            dsTon.map(function(x){ return x.nhomHang; }).filter(function(v, i, arr){ return arr.indexOf(v) === i; }).sort()
+              .map(function(x){ return '<option' + (_locTK.nhom === x ? ' selected' : '') + '>' + h(x) + '</option>'; }).join('') +
+          '</select>' +
+          '<label class="small" style="display:flex;align-items:center;gap:6px">' +
+            '<input type="checkbox" id="tkHet"' + (_locTK.het ? ' checked' : '') + '> Chỉ món sắp hết</label>' +
+        '</div>' +
+        '<div class="xs muted mt" id="tkDem"></div>' +
+        '<div class="scrollx mt" id="tkList"></div>' +
         '<div class="xs muted mt">Nhập/Xuất: số đã duyệt trong khoảng ngày đang xem.</div></div>' : '') +
 
       // Pending approval section
@@ -1824,6 +1852,13 @@ function tabKhoQL(n){
     if (nxCho.length) {
       b.innerHTML += '<div class="sec-title">Nhập/xuất chờ duyệt <span class="chip warn">' + nxCho.length + '</span></div>' +
         nxCho.map(function(p){ return theNhapXuat(p, true); }).join('');
+    }
+
+    if ($('#tkList')) {
+      $('#tkQ').oninput = function(){ _locTK.q = this.value; veDsTonKho(); };
+      $('#tkNhom').onchange = function(){ _locTK.nhom = this.value; veDsTonKho(); };
+      $('#tkHet').onchange = function(){ _locTK.het = this.checked; veDsTonKho(); };
+      veDsTonKho();
     }
 
   } else if (n === 2){
