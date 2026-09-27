@@ -60,7 +60,7 @@ const THAO_TAC = {
   'gc.xacNhan':       { sheets: [GC],         fn: (nv, p) => B.gcXacNhan_(nv, p) },
   'gc.choToiXacNhan': { sheets: [GC],         fn: nv => B.gcChoToiXacNhan_(nv) },
 
-  'ql.tongQuan':     { ql: true, sheets: [CC, CA, LICH, GC, HANG, KHO, NX, TP, BL], fn: (nv, p) => B.qlTongQuan_(nv, p) },
+  'ql.tongQuan':     { ql: true, sheets: [CC, CA, LICH, GC, HANG, KHO, NX, DEM, TP, BL], fn: (nv, p) => B.qlTongQuan_(nv, p) },
   'ql.dangTrongCa':  { ql: true, sheets: [CC, CA],  fn: () => B.qlDangTrongCa_() },
 
   'ql.dsNhanVien':   { ql: true, sheets: [], fn: () => B.qlDsNhanVien_() },

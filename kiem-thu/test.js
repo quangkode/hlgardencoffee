@@ -632,6 +632,7 @@ const pNhap = await must(tkNV, 'kho.nhapXuat', { loai: 'Nhap', maCa: 'CA1', item
 let dongNX = docSheet('NhapXuatKho').filter(x => x.id === pNhap.maPhieu);
 ok('phiếu nhập được ghi vào sheet NhapXuatKho', dongNX.length === 1 && dongNX[0].loai === 'Nhap', dongNX);
 ok('phiếu nhập ở trạng thái chờ duyệt', dongNX[0].trangThaiDuyet === 'ChoDuyet');
+ok('tổng quan quản lý báo có phiếu kho chờ duyệt', (await must(tkQL, 'ql.tongQuan', {})).khoChoDuyet >= 1);
 let h5 = await hangH005();
 ok('chưa duyệt -> tồn chưa đổi (10), hiện chờ nhập 5', h5.tonTruoc === 10 && h5.choNhap === 5, h5);
 ok('nhân viên không tự duyệt được phiếu nhập',

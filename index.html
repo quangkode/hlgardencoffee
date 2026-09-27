@@ -1447,6 +1447,7 @@ VIEWS.q_home = function(root){
     var canhBao = [];
     if (d.quenChamRa) canhBao.push({ c:'err', t: d.quenChamRa + ' ca quên chấm ra (từ hôm trước)', go:"go('q_cc')" });
     if (d.caChoDuyet) canhBao.push({ c:'warn', t: d.caChoDuyet + ' ca đang chờ bạn duyệt', go:"go('q_ca')" });
+    if (d.khoChoDuyet) canhBao.push({ c:'warn', t: d.khoChoDuyet + ' phiếu kho chờ bạn duyệt (kiểm kho / nhập kho)', go:"go('q_kho')" });
     if (d.giaoCaChoXacNhan) canhBao.push({ c:'warn', t: d.giaoCaChoXacNhan + ' biên bản giao ca chưa xác nhận', go:"go('q_gc')" });
     if (d.ngoaiVung) canhBao.push({ c:'err', t: d.ngoaiVung + ' lượt chấm công ngoài vùng quán hôm nay', go:"go('q_cc')" });
     if (d.soCanhBaoKho) canhBao.push({ c:'warn', t: d.soCanhBaoKho + ' mặt hàng dưới định mức tồn', go:"go('q_kho')" });
@@ -1929,6 +1930,7 @@ function tabKhoQL(n){
         '<div class="kpi-card c3"><div class="kpi-ic">&#9888;</div><div class="kpi-v anim-v" style="color:var(--warn)">' + (d.soMHDuoiDM || 0) + '</div><div class="kpi-l">Sắp hết</div></div>' +
         '<div class="kpi-card c4"><div class="kpi-ic">&#128203;</div><div class="kpi-v anim-v">' + (soChoDuyet + soChoNX + (d.phieuDemChoDuyet || []).length) + '</div><div class="kpi-l">Chờ duyệt</div></div>' +
       '</div>' +
+      '<div id="khoCho"></div>' +
 
       (dsTon.length ? '<div class="card"><div class="spread" style="margin-bottom:8px"><b style="font-size:13px">Tồn kho hiện tại</b>' +
         '<span class="xs muted">Bấm vào món để xem chi tiết</span></div>' +
@@ -1957,15 +1959,19 @@ function tabKhoQL(n){
               '<button class="btn err sm" onclick="duyetKiemKho(\'' + p.id + '\',false)">\u2717 Từ chối</button></div></div>';
         }).join('') + '</div>' : '');
 
+    // Mọi phiếu chờ duyệt dồn lên đầu (ngay dưới các ô số), không bắt cuộn qua bảng tồn kho dài
+    var ps = b.querySelector('.pending-section');
+    if (ps) $('#khoCho').appendChild(ps);
+
     var nxCho = d.phieuNXChoDuyet || [];
     if (nxCho.length) {
-      b.innerHTML += '<div class="sec-title">Nhập/xuất chờ duyệt <span class="chip warn">' + nxCho.length + '</span></div>' +
+      $('#khoCho').innerHTML += '<div class="sec-title">Nhập/xuất chờ duyệt <span class="chip warn">' + nxCho.length + '</span></div>' +
         nxCho.map(function(p){ return theNhapXuat(p, true); }).join('');
     }
 
     var demCho = d.phieuDemChoDuyet || [];
     if (demCho.length) {
-      b.innerHTML += '<div class="sec-title">Kiểm kho chờ duyệt <span class="chip warn">' + demCho.length + '</span></div>' +
+      $('#khoCho').innerHTML += '<div class="sec-title">Kiểm kho chờ duyệt <span class="chip warn">' + demCho.length + '</span></div>' +
         demCho.map(function(p){ return theDemKho(p, true); }).join('');
     }
 

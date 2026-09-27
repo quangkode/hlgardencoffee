@@ -1340,6 +1340,9 @@ export function qlTongQuan_(nv, p) {
     caHomNay, gioHomNay: Math.round(phutHomNay / 6) / 10,
     ngoaiVung,
     caChoDuyet: choDuyet, giaoCaChoXacNhan: choXacNhan,
+    khoChoDuyet: [SHEETS.KIEMKHO, SHEETS.NHAPXUAT, SHEETS.DEMKHO].reduce((tong, ten) => tong + new Set(
+      readAll_(ten).filter(r => String(r.trangThaiDuyet || '').trim() === 'ChoDuyet').map(r => String(r.id))
+    ).size, 0),
     doanhThuHomNay, lechQuyHomNay, soBienBanHomNay,
     canhBaoKho: cbKho.slice(0, 12), soCanhBaoKho: cbKho.length,
     thangHienTai: luong.thang, tongLuongTamTinh: tongLuong,
