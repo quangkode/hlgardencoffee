@@ -24,6 +24,7 @@ export const SHEETS = {
   CHAMCONG:   'ChamCong',
   HANG:       'DanhMucHang',
   KIEMKHO:    'KiemKho',
+  NHAPXUAT:   'NhapXuatKho',
   GIAOCA:     'GiaoCa',
   THUONGPHAT: 'ThuongPhat',
   BANGLUONG:  'BangLuong',
@@ -55,6 +56,11 @@ export const HEADERS = {
   [SHEETS.KIEMKHO]: [
     'id', 'thoiGian', 'ngay', 'maCa', 'maNV', 'hoTen', 'maHang', 'tenHang', 'donVi',
     'tonTruoc', 'nhapThem', 'thucTe', 'haoHut', 'duoiDinhMuc', 'ghiChu', 'trangThaiDuyet', 'nguoiDuyet', 'thoiGianDuyet'
+  ],
+  [SHEETS.NHAPXUAT]: [
+    'id', 'thoiGian', 'ngay', 'maCa', 'loai', 'maNV', 'hoTen', 'maHang', 'tenHang', 'donVi',
+    'soLuong', 'donGia', 'thanhTien', 'tonTruoc', 'tonSau', 'ghiChu',
+    'trangThaiDuyet', 'nguoiDuyet', 'thoiGianDuyet'
   ],
   [SHEETS.GIAOCA]: [
     'id', 'thoiGian', 'ngay', 'maCa', 'maNVGiao', 'tenNVGiao', 'maNVNhan', 'tenNVNhan',

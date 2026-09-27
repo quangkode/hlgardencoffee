@@ -51,7 +51,7 @@ function caiDat(key) {
 nhom('1. Khởi tạo tự động ở lượt gọi đầu tiên');
 let r = await api(null, 'appInfo', {});
 ok('gọi được khi bảng tính còn trống', r.ok === true, r.error);
-ok('tạo đủ 11 sheet', tenCacSheet().length === 11, tenCacSheet());
+ok('tạo đủ 12 sheet', tenCacSheet().length === 12, tenCacSheet());
 ok('có sheet ChamCong', tenCacSheet().includes('ChamCong'));
 ok('seed 15 cài đặt', docSheet('CaiDat').length === 15, docSheet('CaiDat').length);
 ok('seed 4 ca làm việc', docSheet('CaLamViec').length === 4);
@@ -571,7 +571,7 @@ ok('nhân viên không gọi được API gợi ý chia ca',
    (await api(tkNV, 'ql.goiYChiaCa', { tuNgay: '2026-09-14', denNgay: '2026-09-16' })).ok === false);
 
 /* ============ 16. Sửa lỗi "tồn trước" & xoá mặt hàng ============ */
-nhom('16. Sửa lỗi tồn trước khi chưa duyệt, và xoá mặt hàng');
+nhom('16. Tồn chỉ đổi khi phiếu được duyệt, và xoá mặt hàng');
 
 // H004 (Đường) chưa ai đụng tới trước đó trong bộ test này -> tồn trước = 0
 datGio('2026-09-20T00:00:00Z');
@@ -579,12 +579,15 @@ let pKho1 = await must(tkNV, 'kho.gui', { maCa: 'CA1', items: [{ maHang: 'H004',
 ok('phiếu 1: tồn trước = 0 (chưa từng kiểm)',
    Number(docSheet('KiemKho').find(x => x.id === pKho1.maPhieu).tonTruoc) === 0);
 
-// Chưa duyệt phiếu 1 mà đã kiểm tiếp phiếu 2 -> PHẢI thấy tồn trước = 20 (của phiếu 1),
-// không phải tồn cũ trước đó (bug cũ: chỉ tính phiếu đã duyệt nên sẽ lấy nhầm về 0)
+const hangH004 = pm2 => pm2.nhomHang.flatMap(g => g.items).find(x => x.maHang === 'H004');
+ok('phiếu 1 chưa duyệt -> tồn hiện tại vẫn là 0', hangH004(await must(tkNV, 'kho.phieuMoi')).tonTruoc === 0);
+await must(tkQL, 'ql.duyetKiemKho', { id: pKho1.maPhieu, duyet: true });
+ok('duyệt phiếu 1 -> tồn hiện tại = 20', hangH004(await must(tkNV, 'kho.phieuMoi')).tonTruoc === 20);
+
 datGio('2026-09-20T00:05:00Z');
 let pKho2 = await must(tkNV, 'kho.gui', { maCa: 'CA1', items: [{ maHang: 'H004', nhapThem: 0, thucTe: 15 }] });
 const dong2 = docSheet('KiemKho').find(x => x.id === pKho2.maPhieu);
-ok('phiếu 2 (khi phiếu 1 chưa duyệt): tồn trước = 20', Number(dong2.tonTruoc) === 20, dong2.tonTruoc);
+ok('phiếu 2: tồn trước = 20 (của phiếu 1 đã duyệt)', Number(dong2.tonTruoc) === 20, dong2.tonTruoc);
 
 // Quản lý từ chối phiếu 2 (huỷ, coi như chưa từng xảy ra)
 await must(tkQL, 'ql.duyetKiemKho', { id: pKho2.maPhieu, duyet: false });
@@ -614,6 +617,63 @@ ok('không xoá được lần 2 (đã xoá rồi)', (await api(tkQL, 'ql.xoaHan
 ok('lịch sử kiểm kho cũ của H004 vẫn còn nguyên', docSheet('KiemKho').filter(x => x.maHang === 'H004').length === 3);
 ok('nhân viên không gọi được API xoá mặt hàng',
    (await api(tkNV, 'ql.xoaHang', { maHang: 'H001' })).ok === false);
+
+/* ============ 17. Nhập / xuất kho (sheet NhapXuatKho) ============ */
+nhom('17. Nhập / xuất kho');
+const hangH005 = async () => (await must(tkNV, 'kho.phieuMoi')).nhomHang.flatMap(g => g.items).find(x => x.maHang === 'H005');
+
+datGio('2026-09-21T00:00:00Z');
+const kk5 = await must(tkNV, 'kho.gui', { maCa: 'CA1', items: [{ maHang: 'H005', nhapThem: 0, thucTe: 10 }] });
+await must(tkQL, 'ql.duyetKiemKho', { id: kk5.maPhieu, duyet: true });
+ok('kiểm kho ban đầu H005 = 10', (await hangH005()).tonTruoc === 10);
+
+datGio('2026-09-21T01:00:00Z');
+const pNhap = await must(tkNV, 'kho.nhapXuat', { loai: 'Nhap', maCa: 'CA1', items: [{ maHang: 'H005', soLuong: 5 }] });
+let dongNX = docSheet('NhapXuatKho').filter(x => x.id === pNhap.maPhieu);
+ok('phiếu nhập được ghi vào sheet NhapXuatKho', dongNX.length === 1 && dongNX[0].loai === 'Nhap', dongNX);
+ok('phiếu nhập ở trạng thái chờ duyệt', dongNX[0].trangThaiDuyet === 'ChoDuyet');
+let h5 = await hangH005();
+ok('chưa duyệt -> tồn chưa đổi (10), hiện chờ nhập 5', h5.tonTruoc === 10 && h5.choNhap === 5, h5);
+ok('nhân viên không tự duyệt được phiếu nhập',
+   (await api(tkNV, 'ql.duyetNhapXuat', { id: pNhap.maPhieu, duyet: true })).ok === false);
+
+await must(tkQL, 'ql.duyetNhapXuat', { id: pNhap.maPhieu, duyet: true });
+dongNX = docSheet('NhapXuatKho').filter(x => x.id === pNhap.maPhieu);
+ok('duyệt nhập -> tồn = 15', (await hangH005()).tonTruoc === 15);
+ok('sheet ghi tồn trước 10 / tồn sau 15', Number(dongNX[0].tonTruoc) === 10 && Number(dongNX[0].tonSau) === 15, dongNX[0]);
+ok('không duyệt lại lần 2 được', (await api(tkQL, 'ql.duyetNhapXuat', { id: pNhap.maPhieu, duyet: true })).ok === false);
+
+datGio('2026-09-21T02:00:00Z');
+ok('xuất quá tồn bị chặn', (await api(tkNV, 'kho.nhapXuat', { loai: 'Xuat', items: [{ maHang: 'H005', soLuong: 20 }] })).ok === false);
+const pXuat = await must(tkNV, 'kho.nhapXuat', { loai: 'Xuat', maCa: 'CA2', items: [{ maHang: 'H005', soLuong: 4 }] });
+ok('xuất khi đang có 4 chờ xuất: chỉ còn 11 được xuất -> xuất 12 bị chặn',
+   (await api(tkNV, 'kho.nhapXuat', { loai: 'Xuat', items: [{ maHang: 'H005', soLuong: 12 }] })).ok === false);
+h5 = await hangH005();
+ok('chưa duyệt xuất -> tồn vẫn 15, chờ xuất 4', h5.tonTruoc === 15 && h5.choXuat === 4, h5);
+
+const pXuat2 = await must(tkNV, 'kho.nhapXuat', { loai: 'Xuat', items: [{ maHang: 'H005', soLuong: 1 }] });
+await must(tkQL, 'ql.duyetNhapXuat', { id: pXuat2.maPhieu, duyet: false });
+ok('phiếu xuất bị từ chối không trừ tồn', (await hangH005()).tonTruoc === 15);
+
+await must(tkQL, 'ql.duyetNhapXuat', { id: pXuat.maPhieu, duyet: true });
+ok('duyệt xuất -> tồn = 11', (await hangH005()).tonTruoc === 11);
+
+datGio('2026-09-21T10:00:00Z');
+const kk5b = await must(tkNV, 'kho.gui', { maCa: 'CA3', items: [{ maHang: 'H005', nhapThem: 0, thucTe: 11 }] });
+const dongKK5b = docSheet('KiemKho').find(x => x.id === kk5b.maPhieu);
+ok('kiểm cuối ngày: tồn trước = 11 và hao = 0 (xuất kho KHÔNG bị tính là hao hụt)',
+   Number(dongKK5b.tonTruoc) === 11 && Number(dongKK5b.haoHut) === 0, dongKK5b);
+await must(tkQL, 'ql.duyetKiemKho', { id: kk5b.maPhieu, duyet: true });
+
+// Nhập đã duyệt nhưng diễn ra TRƯỚC lần kiểm mới nhất thì đã nằm trong số đếm, không cộng lần 2
+ok('tồn sau lần kiểm mới = đúng số đếm 11', (await hangH005()).tonTruoc === 11);
+
+const khoQL3 = await must(tkQL, 'ql.kho', { tuNgay: '2026-09-21', denNgay: '2026-09-21' });
+const tk5 = khoQL3.thongKe.find(x => x.maHang === 'H005');
+ok('báo cáo: tổng nhập 5, tổng xuất 4 (chỉ tính phiếu đã duyệt)', tk5.tongNhap === 5 && tk5.tongXuat === 4, tk5);
+ok('báo cáo có danh sách phiếu nhập/xuất (3 phiếu)', khoQL3.phieuNX.length === 3, khoQL3.phieuNX.length);
+ok('nhân viên xem lịch sử thấy phiếu nhập/xuất',
+   (await must(tkNV, 'kho.lichSu', { tuNgay: '2026-09-21', denNgay: '2026-09-21' })).phieuNX.length === 3);
 
 console.log('\n───────────────');
 console.log(dat + ' đạt / ' + hong + ' lỗi');

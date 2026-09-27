@@ -438,20 +438,41 @@ export function khoDanhMuc_() {
     }));
 }
 
+const lam3_ = n => Math.round(n * 1000) / 1000;
+
 /**
- * Tồn gần nhất của mỗi mặt hàng, để làm "tồn trước" cho phiếu kế tiếp.
- * Lấy theo dòng MỚI NHẤT theo thời gian, bất kể đã duyệt hay chưa — vì trong
- * ngày nhân viên có thể kiểm/nhập/xuất liên tiếp nhiều lần trước khi quản lý
- * kịp duyệt, nếu chỉ tính dòng đã duyệt thì phiếu sau sẽ lấy nhầm tồn cũ.
- * Chỉ bỏ qua dòng đã bị quản lý TỪ CHỐI (coi như chưa từng xảy ra).
+ * Tồn hiện tại của mỗi mặt hàng = số đếm của lần KIỂM KHO đã duyệt gần nhất
+ * + nhập kho đã duyệt − xuất kho đã duyệt diễn ra SAU lần kiểm đó.
+ * Chỉ phiếu đã được quản lý duyệt mới làm thay đổi tồn; phiếu nhập/xuất đang
+ * chờ duyệt được cộng riêng vào choNhap/choXuat để hiển thị cho biết.
  */
 export function tonGanNhat_() {
   const map = {};
   readAll_(SHEETS.KIEMKHO).forEach(r => {
-    if (String(r.trangThaiDuyet || '').trim() === 'TuChoi') return;
+    const tt = String(r.trangThaiDuyet || '').trim();
+    if (tt && tt !== 'DaDuyet') return;
     const ma = String(r.maHang).trim();
     const stamp = String(r.thoiGian || '');
-    if (!map[ma] || stamp >= map[ma].stamp) map[ma] = { stamp, thucTe: num_(r.thucTe) };
+    if (!map[ma] || stamp >= map[ma].moc) {
+      map[ma] = { stamp, moc: stamp, thucTe: num_(r.thucTe), choNhap: 0, choXuat: 0 };
+    }
+  });
+
+  readAll_(SHEETS.NHAPXUAT).forEach(r => {
+    const ma = String(r.maHang).trim();
+    const tt = String(r.trangThaiDuyet || '').trim();
+    const sl = num_(r.soLuong);
+    const xuat = String(r.loai).trim() === 'Xuat';
+    const m = map[ma] || (map[ma] = { stamp: '', moc: '', thucTe: 0, choNhap: 0, choXuat: 0 });
+    if (tt === 'ChoDuyet') {
+      if (xuat) m.choXuat = lam3_(m.choXuat + sl); else m.choNhap = lam3_(m.choNhap + sl);
+      return;
+    }
+    if (tt !== 'DaDuyet') return;
+    const stamp = String(r.thoiGian || '');
+    if (m.moc && stamp < m.moc) return;       // đã nằm trong số đếm của lần kiểm sau đó
+    m.thucTe = lam3_(m.thucTe + (xuat ? -sl : sl));
+    if (stamp > m.stamp) m.stamp = stamp;
   });
   return map;
 }
@@ -477,6 +498,8 @@ export function khoPhieuMoi_(nv) {
     const t = ton[h.maHang];
     h.tonTruoc = t ? t.thucTe : 0;
     h.lanKiemTruoc = t ? t.stamp : '';
+    h.choNhap = t ? t.choNhap : 0;
+    h.choXuat = t ? t.choXuat : 0;
     (nhom[h.nhomHang] = nhom[h.nhomHang] || []).push(h);
   });
   return {
@@ -565,7 +588,129 @@ export function khoLichSu_(nv, p) {
   const tu = dstr_(p.tuNgay) || ngayLech_(-7);
   const den = dstr_(p.denNgay) || today_();
   const rows = readAll_(SHEETS.KIEMKHO).filter(r => trongKhoang_(r.ngay, tu, den));
-  return { tu, den, phieu: gomPhieuKho_(rows).slice(0, 60) };
+  const nx = readAll_(SHEETS.NHAPXUAT).filter(r => trongKhoang_(r.ngay, tu, den));
+  return { tu, den, phieu: gomPhieuKho_(rows).slice(0, 60), phieuNX: gomPhieuNX_(nx).slice(0, 60) };
+}
+
+/* ================= NHẬP / XUẤT KHO ================= */
+
+export function gomPhieuNX_(rows) {
+  const map = {};
+  rows.forEach(r => {
+    const id = String(r.id);
+    if (!map[id]) {
+      map[id] = {
+        id, loai: String(r.loai || ''), thoiGian: String(r.thoiGian || ''), ngay: dstr_(r.ngay),
+        maCa: String(r.maCa || ''), maNV: String(r.maNV || ''), hoTen: String(r.hoTen || ''),
+        ghiChu: String(r.ghiChu || ''), trangThaiDuyet: String(r.trangThaiDuyet || ''),
+        nguoiDuyet: String(r.nguoiDuyet || ''), tongTien: 0, items: []
+      };
+    }
+    map[id].tongTien += num_(r.thanhTien);
+    map[id].items.push({
+      maHang: String(r.maHang), tenHang: String(r.tenHang || ''), donVi: String(r.donVi || ''),
+      soLuong: num_(r.soLuong), donGia: num_(r.donGia), thanhTien: num_(r.thanhTien),
+      tonTruoc: num_(r.tonTruoc), tonSau: num_(r.tonSau)
+    });
+  });
+  return Object.values(map).sort((a, b) => b.thoiGian.localeCompare(a.thoiGian));
+}
+
+/** Nhân viên gửi phiếu nhập hoặc xuất kho. Chờ quản lý duyệt mới tính vào tồn. */
+export function khoNhapXuat_(nv, p) {
+  const loai = p.loai === 'Nhap' || p.loai === 'Xuat' ? p.loai : '';
+  if (!loai) throw new Error('Loại phiếu không hợp lệ (phải là nhập hoặc xuất).');
+  const items = Array.isArray(p.items) ? p.items : [];
+
+  const dm = {};
+  khoDanhMuc_().forEach(h => { dm[h.maHang] = h; });
+  const ton = tonGanNhat_();
+  const id = uid_(loai === 'Nhap' ? 'NK' : 'XK');
+  const stamp = nowStamp_();
+  const ngay = today_();
+  const maCa = String(p.maCa || caGoiYHienTai_(nv)).trim().toUpperCase();
+
+  const rows = [], thieu = [];
+  items.forEach(it => {
+    const ma = String(it.maHang || '').trim();
+    const h = dm[ma];
+    const sl = Math.abs(num_(it.soLuong));
+    if (!h || !sl) return;
+    const t = ton[ma] || { thucTe: 0, choXuat: 0 };
+    if (loai === 'Xuat') {
+      const conDuocXuat = lam3_(t.thucTe - t.choXuat);
+      if (sl > conDuocXuat) {
+        thieu.push(h.tenHang + ': chỉ còn ' + conDuocXuat + ' ' + h.donVi +
+                   (t.choXuat ? ' (đã trừ ' + t.choXuat + ' đang chờ xuất)' : ''));
+        return;
+      }
+    }
+    rows.push({
+      id, thoiGian: stamp, ngay, maCa, loai,
+      maNV: nv.maNV, hoTen: nv.hoTen,
+      maHang: ma, tenHang: h.tenHang, donVi: h.donVi,
+      soLuong: sl, donGia: h.giaVon, thanhTien: Math.round(sl * h.giaVon),
+      tonTruoc: t.thucTe, tonSau: lam3_(t.thucTe + (loai === 'Nhap' ? sl : -sl)),
+      ghiChu: String(p.ghiChu || ''),
+      trangThaiDuyet: 'ChoDuyet', nguoiDuyet: '', thoiGianDuyet: ''
+    });
+  });
+
+  if (thieu.length) throw new Error('Không đủ hàng để xuất:\n• ' + thieu.join('\n• '));
+  if (!rows.length) throw new Error('Chưa nhập số lượng cho mặt hàng nào.');
+  withLock_(() => appendMany_(SHEETS.NHAPXUAT, rows));
+  ghiNhatKy_(nv, loai === 'Nhap' ? 'NhapKho' : 'XuatKho', id + ' — ' + rows.length + ' mặt hàng');
+
+  return {
+    thongBao: 'Đã gửi phiếu ' + (loai === 'Nhap' ? 'nhập' : 'xuất') + ' kho ' + rows.length +
+              ' mặt hàng, chờ quản lý duyệt.',
+    maPhieu: id
+  };
+}
+
+/** Quản lý duyệt/từ chối phiếu nhập-xuất. Khi duyệt, chốt lại tồn trước/sau theo tồn lúc duyệt. */
+export function qlDuyetNhapXuat_(nv, p) {
+  const id = String(p.id || '').trim();
+  const duyet = p.duyet !== false;
+  const rows = readAll_(SHEETS.NHAPXUAT).filter(r => String(r.id) === id);
+  if (!rows.length) throw new Error('Không tìm thấy phiếu ' + id + '.');
+  if (rows.some(r => String(r.trangThaiDuyet).trim() !== 'ChoDuyet')) {
+    throw new Error('Phiếu này đã được xử lý rồi.');
+  }
+  const laXuat = r => String(r.loai).trim() === 'Xuat';
+
+  return withLock_(() => {
+    if (!duyet) {
+      rows.forEach(r => patchRow_(SHEETS.NHAPXUAT, r._row, {
+        trangThaiDuyet: 'TuChoi', nguoiDuyet: nv.maNV, thoiGianDuyet: nowStamp_()
+      }));
+      ghiNhatKy_(nv, 'TuChoiNhapXuat', id);
+      return { thongBao: 'Đã từ chối phiếu.' };
+    }
+
+    const ton = tonGanNhat_();
+    const tinh = {}, thieu = [], capNhat = [];
+    rows.forEach(r => {
+      const ma = String(r.maHang).trim();
+      const truoc = tinh[ma] !== undefined ? tinh[ma] : (ton[ma] ? ton[ma].thucTe : 0);
+      const sl = num_(r.soLuong);
+      if (laXuat(r) && sl > truoc) thieu.push(String(r.tenHang) + ': tồn ' + truoc + ', xuất ' + sl);
+      const sau = lam3_(truoc + (laXuat(r) ? -sl : sl));
+      tinh[ma] = sau;
+      capNhat.push({ r, truoc, sau });
+    });
+    if (thieu.length) {
+      throw new Error('Tồn kho hiện tại không đủ để duyệt phiếu xuất này:\n• ' + thieu.join('\n• ') +
+                      '\nKiểm tra lại hoặc từ chối phiếu.');
+    }
+
+    capNhat.forEach(({ r, truoc, sau }) => patchRow_(SHEETS.NHAPXUAT, r._row, {
+      tonTruoc: truoc, tonSau: sau,
+      trangThaiDuyet: 'DaDuyet', nguoiDuyet: nv.maNV, thoiGianDuyet: nowStamp_()
+    }));
+    ghiNhatKy_(nv, 'DuyetNhapXuat', id);
+    return { thongBao: 'Đã duyệt phiếu ' + (laXuat(rows[0]) ? 'xuất' : 'nhập') + ' kho, tồn đã được cập nhật.' };
+  });
 }
 
 export function qlDuyetKiemKho_(nv, p) {
@@ -1676,6 +1821,15 @@ export function qlKho_(nv, p) {
     .sort((a, b) => b.tien - a.tien);
 
   // Đếm phiếu chờ duyệt
+  const tatCaNX = readAll_(SHEETS.NHAPXUAT);
+  const nxTrongKy = tatCaNX.filter(r => trongKhoang_(r.ngay, tu, den));
+  nxTrongKy.filter(r => String(r.trangThaiDuyet).trim() === 'DaDuyet').forEach(r => {
+    const x = thongKe.find(t => t.maHang === String(r.maHang));
+    if (!x) return;
+    if (String(r.loai).trim() === 'Xuat') x.tongXuat = lam3_((x.tongXuat || 0) + num_(r.soLuong));
+    else x.tongNhap = lam3_((x.tongNhap || 0) + num_(r.soLuong));
+  });
+
   const tatCaKho = readAll_(SHEETS.KIEMKHO);
   const phieuChoDuyet = gomPhieuKho_(
     tatCaKho.filter(r => String(r.trangThaiDuyet || '').trim() === 'ChoDuyet')
@@ -1691,6 +1845,8 @@ export function qlKho_(nv, p) {
     thongKe,
     nhomChart,
     phieuChoDuyet,
+    phieuNX: gomPhieuNX_(nxTrongKy).slice(0, 60),
+    phieuNXChoDuyet: gomPhieuNX_(tatCaNX.filter(r => String(r.trangThaiDuyet).trim() === 'ChoDuyet')),
     soMHKiem,
     soMHDuoiDM,
     danhMuc: readAll_(SHEETS.HANG).map(r => ({
