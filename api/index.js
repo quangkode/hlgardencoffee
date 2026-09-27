@@ -52,7 +52,7 @@ const THAO_TAC = {
   'kho.dem':       { sheets: [HANG, KHO, NX, DEM, CA, CC], fn: (nv, p) => B.khoDem_(nv, p) },
   'kho.lichSu':    { sheets: [KHO, NX, DEM],                 fn: (nv, p) => B.khoLichSu_(nv, p) },
 
-  'ql.nhapKhoExcel': { ql: true, sheets: [HANG, KHO], fn: (nv, p) => B.qlNhapKhoExcel_(nv, p) },
+  'ql.nhapKhoExcel': { ql: true, sheets: [HANG, KHO, NX], fn: (nv, p) => B.qlNhapKhoExcel_(nv, p) },
 
   'gc.dsNguoiNhan':   { sheets: [],           fn: nv => B.gcDanhSachNguoiNhan_(nv) },
   'gc.gui':           { sheets: [GC, CA, CC], fn: (nv, p) => B.gcGui_(nv, p) },
@@ -93,6 +93,7 @@ const THAO_TAC = {
   'ql.dsPhieuChoDuyet': { ql: true, sheets: [KHO], fn: () => B.qlDsPhieuChoDuyet_() },
   'ql.luuHang':  { ql: true, sheets: [HANG],      fn: (nv, p) => B.qlLuuHang_(nv, p) },
   'ql.xoaHang':  { ql: true, sheets: [HANG, KHO], fn: (nv, p) => B.qlXoaHang_(nv, p) },
+  'ql.khoiPhucHang': { ql: true, sheets: [HANG, KHO, NX], fn: (nv, p) => B.qlKhoiPhucHang_(nv, p) },
   'ql.giaoCa':   { ql: true, sheets: [GC],        fn: (nv, p) => B.qlGiaoCa_(nv, p) },
 
   'ql.docCaiDat': { ql: true, sheets: [CA], fn: () => B.qlDocCaiDat_() },

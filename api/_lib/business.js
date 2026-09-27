@@ -948,6 +948,9 @@ export function qlNhapKhoExcel_(nv, p) {
     dm[ma] = { tenHang: String(r.tenHang || ''), donVi: String(r.donVi || ''), tonDinhMuc: num_(r.tonDinhMuc) };
     tenSangMa[chuanHoaTenHang_(r.tenHang)] = ma;
   });
+  const lichSu = hangThieuTrongDanhMuc_();
+  const tenLichSu = {};
+  lichSu.forEach(x => { tenLichSu[chuanHoaTenHang_(x.tenHang)] = x; });
 
   // Mặt hàng có trong file mà danh mục chưa có (kể cả ở những ngày đã nhập
   // trước đó) thì bổ sung lại -> tải lại file cũ sẽ khôi phục món bị xoá nhầm.
@@ -957,11 +960,14 @@ export function qlNhapKhoExcel_(nv, p) {
     if (!ten) return;
     const key = chuanHoaTenHang_(ten);
     if (tenSangMa[key]) return;
-    const ma = taoMaHangTuTen_(ten, maDaDung);
+    const cu = tenLichSu[key];                 // món từng có trong kho -> giữ đúng mã cũ để không mất tồn
+    const ma = cu ? cu.maHang : taoMaHangTuTen_(ten, maDaDung);
+    maDaDung.add(ma);
+    const tenDung = cu ? cu.tenHang : ten, dvDung = (cu && cu.donVi) || it.donVi || '';
     tenSangMa[key] = ma;
-    dm[ma] = { tenHang: ten, donVi: it.donVi, tonDinhMuc: 0 };
+    dm[ma] = { tenHang: tenDung, donVi: dvDung, tonDinhMuc: 0 };
     hangMoi.push({
-      maHang: ma, tenHang: ten, donVi: it.donVi || '',
+      maHang: ma, tenHang: tenDung, donVi: dvDung,
       nhomHang: 'Nhập từ Excel', tonDinhMuc: 0, giaVon: it.donGia || 0,
       trangThai: 'HoatDong'
     });
@@ -1974,6 +1980,41 @@ export function qlLuuHang_(nv, p) {
   if (cu) writeRow_(SHEETS.HANG, cu._row, obj); else appendObj_(SHEETS.HANG, obj);
   ghiNhatKy_(nv, 'LuuHang', ma);
   return { thongBao: 'Đã lưu mặt hàng ' + obj.tenHang + '.' };
+}
+
+/** Các mặt hàng có dữ liệu kho (kiểm kho / nhập xuất) nhưng không còn dòng nào
+ *  trong danh mục hàng — thường do bị xoá nhầm. Trả về mã/tên/đơn vị cũ. */
+export function hangThieuTrongDanhMuc_() {
+  const coTrongDM = new Set(), tenTrongDM = new Set();
+  readAll_(SHEETS.HANG).forEach(r => {
+    coTrongDM.add(String(r.maHang).trim().toUpperCase());
+    tenTrongDM.add(chuanHoaTenHang_(r.tenHang));
+  });
+  const map = {};
+  const them = r => {
+    const ma = String(r.maHang || '').trim().toUpperCase();
+    if (!ma || coTrongDM.has(ma) || tenTrongDM.has(chuanHoaTenHang_(r.tenHang))) return;
+    const stamp = String(r.thoiGian || '');
+    if (!map[ma] || stamp > map[ma].stamp) {
+      map[ma] = { maHang: ma, tenHang: String(r.tenHang || ''), donVi: String(r.donVi || ''), stamp };
+    }
+  };
+  readAll_(SHEETS.KIEMKHO).forEach(r => { if (String(r.trangThaiDuyet || '').trim() !== 'TuChoi') them(r); });
+  readAll_(SHEETS.NHAPXUAT).forEach(them);
+  return Object.values(map).sort((a, b) => a.tenHang.localeCompare(b.tenHang, 'vi'));
+}
+
+/** Quản lý: xem / khôi phục các món còn thiếu trong danh mục, giữ nguyên mã cũ. */
+export function qlKhoiPhucHang_(nv, p) {
+  const ds = hangThieuTrongDanhMuc_();
+  if (!p.xacNhan) return { ds: ds.map(x => ({ maHang: x.maHang, tenHang: x.tenHang, donVi: x.donVi })) };
+  if (!ds.length) throw new Error('Danh mục đã đủ món, không có gì để khôi phục.');
+  withLock_(() => appendMany_(SHEETS.HANG, ds.map(x => ({
+    maHang: x.maHang, tenHang: x.tenHang, donVi: x.donVi,
+    nhomHang: 'Nhập từ Excel', tonDinhMuc: 0, giaVon: 0, trangThai: 'HoatDong'
+  }))));
+  ghiNhatKy_(nv, 'KhoiPhucHang', ds.map(x => x.maHang).join(','));
+  return { thongBao: 'Đã khôi phục ' + ds.length + ' mặt hàng: ' + ds.map(x => x.tenHang).join(', ') + '.' };
 }
 
 /** Xoá hẳn 1 mặt hàng khỏi danh mục. Lịch sử kiểm kho cũ vẫn giữ nguyên

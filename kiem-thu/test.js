@@ -719,9 +719,26 @@ const xt19 = await must(tkQL, 'ql.nhapKhoExcel', { fileBase64 });
 ok('xem trước: không có ngày mới nhưng báo 1 món còn thiếu', xt19.soDong === 0 && xt19.soHangMoi === 1, xt19);
 const r19 = await must(tkQL, 'ql.nhapKhoExcel', { fileBase64, xacNhan: true });
 ok('xác nhận: món bị xoá được tạo lại', docSheet('DanhMucHang').some(x => x.tenHang === 'Bột Matcha Test'), r19.thongBao);
+ok('món được tạo lại giữ đúng mã cũ (không tách tồn kho)', docSheet('DanhMucHang').some(x => x.tenHang === 'Bột Matcha Test' && x.maHang === maMatcha));
 ok('không ghi thêm dòng kiểm kho nào', docSheet('KiemKho').length === soKK19);
 ok('tải lại lần nữa khi đã đủ món thì báo không có gì để nhập',
    (await api(tkQL, 'ql.nhapKhoExcel', { fileBase64, xacNhan: true })).ok === false);
+
+/* ============ 20. Khôi phục món còn thiếu từ lịch sử kho ============ */
+nhom('20. Khôi phục món còn thiếu (giữ mã cũ, giữ tồn)');
+const tonH005TruocXoa = (await hangH005()).tonTruoc;
+await must(tkQL, 'ql.xoaHang', { maHang: 'H005' });
+ok('xoá xong thì màn nhập kho không còn món đó', !(await hangH005()));
+const xem20 = await must(tkQL, 'ql.khoiPhucHang', {});
+ok('xem trước liệt kê món bị xoá có dữ liệu kho (H005, H004)',
+   xem20.ds.some(x => x.maHang === 'H005') && xem20.ds.some(x => x.maHang === 'H004'), xem20.ds);
+ok('không liệt kê món vẫn còn trong danh mục', !xem20.ds.some(x => x.maHang === 'H001'));
+ok('nhân viên không gọi được', (await api(tkNV, 'ql.khoiPhucHang', { xacNhan: true })).ok === false);
+await must(tkQL, 'ql.khoiPhucHang', { xacNhan: true });
+const h5moi = await hangH005();
+ok('khôi phục: món quay lại màn nhập kho với đúng mã cũ', !!h5moi);
+ok('tồn kho giữ nguyên như trước khi xoá', h5moi && h5moi.tonTruoc === tonH005TruocXoa, [h5moi && h5moi.tonTruoc, tonH005TruocXoa]);
+ok('lần 2 báo danh mục đã đủ', (await must(tkQL, 'ql.khoiPhucHang', {})).ds.length === 0);
 
 console.log('\n───────────────');
 console.log(dat + ' đạt / ' + hong + ' lỗi');
