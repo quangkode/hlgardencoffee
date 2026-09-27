@@ -212,6 +212,13 @@ table.tbl.kk th:first-child,table.tbl.kk td:first-child{text-align:left;border-l
 .kho-item .inp{padding:8px;text-align:center;font-size:15px}
 .kho-head{display:grid;grid-template-columns:1fr 72px 72px;gap:8px;font-size:10px;color:var(--tx2);text-transform:uppercase;font-weight:700;padding-bottom:4px;border-bottom:1px solid var(--line)}
 .kho-item.c2,.kho-head.c2{grid-template-columns:1fr 92px}
+.nk-luoi{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:6px}
+.nk-o{position:relative;text-align:left;background:var(--card);color:var(--tx);border:1.5px solid var(--line);border-radius:12px;padding:10px 26px 10px 10px;cursor:pointer;font:inherit}
+.nk-o .nm{font-size:13px;font-weight:600;line-height:1.25}
+.nk-o .nk-tick{position:absolute;top:8px;right:8px;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line);font-size:10px;line-height:13px;text-align:center;color:transparent}
+.nk-o.on{border-color:var(--brand);background:var(--card2)}
+.nk-o.on .nk-tick{background:var(--brand);border-color:var(--brand);color:#fff}
+.nk-day{position:sticky;bottom:0;padding:10px 0 2px;background:var(--bg)}
 
 /* ===== Dashboard KPI & Charts ===== */
 .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
@@ -1043,73 +1050,110 @@ function moFormDem(d){
   });
 }
 
-/* Nhập kho: chọn món từ ô thả, điền số lượng; hoa quả thì điền thêm đơn giá của ngày nhập. */
+/* Nhập kho 2 bước: (1) bấm chọn các món trong lưới sản phẩm, (2) điền số lượng
+   (hoa quả điền thêm đơn giá của ngày nhập), chọn ngày rồi gửi. */
 function moFormNhap(d){
   var tatCa = [];
   d.nhomHang.forEach(function(g){ g.items.forEach(function(it){ tatCa.push(it); }); });
-  var optHang = '<option value="">— Chọn mặt hàng —</option>' + d.nhomHang.map(function(g){
-    return '<optgroup label="' + h(g.ten) + '">' + g.items.map(function(it){
-      return '<option value="' + h(it.maHang) + '">' + h(it.tenHang) + ' (' + h(it.donVi) + ')</option>';
-    }).join('') + '</optgroup>';
-  }).join('');
-  var dong = function(){
-    return '<div class="card tight nk-dong">' +
-      '<div class="row" style="gap:6px;align-items:center"><select class="inp grow nk-hang">' + optHang + '</select>' +
-      '<button class="btn sm ghost nk-xoa" type="button">&times;</button></div>' +
-      '<div class="grid2 mt">' +
-        '<label class="f" style="margin:0"><span class="nk-dv">Số lượng</span><input class="inp nk-sl" inputmode="decimal" placeholder="0"></label>' +
-        '<label class="f nk-gia-wrap" style="margin:0;display:none"><span>Đơn giá hôm đó (đ)</span>' +
-          '<input class="inp nk-gia" inputmode="numeric" placeholder="VD: 95000"></label>' +
-      '</div></div>';
-  };
+  var timHang = function(ma){ return tatCa.filter(function(x){ return x.maHang === ma; })[0]; };
+  var chon = [];          // maHang theo thứ tự đã chọn
+  var giaTri = {};        // maHang -> { sl, gia } đã gõ ở bước 2
 
   var body =
-    '<div class="card"><div class="grid2">' +
-      '<label class="f"><span>Ngày nhập kho</span><input class="inp" type="date" id="nkNgay" value="' + h(d.ngay) + '" max="' + h(d.ngay) + '"></label>' +
-      '<label class="f"><span>Ca</span><select class="inp" id="kkCa">' + optCaKho(d) + '</select></label>' +
+    '<div id="nkB1">' +
+      '<input class="inp" id="nkTim" placeholder="Tìm mặt hàng…">' +
+      d.nhomHang.map(function(g){
+        return '<div class="sec-title nk-nhom">' + h(g.ten) + '</div><div class="nk-luoi">' +
+          g.items.map(function(it){
+            return '<button type="button" class="nk-o" data-m="' + h(it.maHang) + '" data-t="' + h(boDau(it.tenHang)) + '">' +
+              '<span class="nk-tick">&#10003;</span>' +
+              '<div class="nm">' + h(it.tenHang) + '</div>' +
+              '<div class="xs muted">' + h(it.donVi) + ' · tồn ' + it.tonTruoc + '</div></button>';
+          }).join('') + '</div>';
+      }).join('') +
+      '<div class="nk-day"><button class="btn block" id="nkTiep" type="button" disabled>Chọn mặt hàng để tiếp tục</button></div>' +
     '</div>' +
-    '<div class="xs muted">Chọn món, điền số lượng. Hoa quả thì điền thêm đơn giá của ngày nhập. Quản lý duyệt xong mới cộng vào tồn.</div></div>' +
-    '<div id="nkDs">' + dong() + '</div>' +
-    '<button class="btn ghost block mb" id="nkThem" type="button">&#10133; Thêm mặt hàng</button>' +
-    '<label class="f"><span>Ghi chú</span><textarea class="inp" id="kkGhiChu" placeholder="VD: nhập từ chợ đầu mối"></textarea></label>' +
-    '<button class="btn block" id="kkGui">Gửi phiếu nhập kho</button>';
+    '<div id="nkB2" style="display:none">' +
+      '<div class="card"><div class="grid2">' +
+        '<label class="f"><span>Ngày nhập kho</span><input class="inp" type="date" id="nkNgay" value="' + h(d.ngay) + '" max="' + h(d.ngay) + '"></label>' +
+        '<label class="f"><span>Ca</span><select class="inp" id="kkCa">' + optCaKho(d) + '</select></label>' +
+      '</div><div class="xs muted">Quản lý duyệt xong mới cộng vào tồn.</div></div>' +
+      '<div class="card" id="nkDs"></div>' +
+      '<button class="btn ghost block mb" id="nkLai" type="button">&#8592; Chọn thêm / bỏ bớt mặt hàng</button>' +
+      '<label class="f"><span>Ghi chú</span><textarea class="inp" id="kkGhiChu" placeholder="VD: nhập từ chợ đầu mối"></textarea></label>' +
+      '<button class="btn block" id="kkGui">Gửi phiếu nhập kho</button>' +
+    '</div>';
 
   moSheet({
     title: '📥 Nhập kho',
     body: body,
     onMount: function(){
-      var timHang = function(ma){ return tatCa.filter(function(x){ return x.maHang === ma; })[0]; };
-      var ganDong = function(el){
-        var sel = el.querySelector('.nk-hang');
-        sel.onchange = function(){
-          var it = timHang(sel.value);
-          el.querySelector('.nk-dv').textContent = 'Số lượng' + (it ? ' (' + it.donVi + ')' : '');
-          el.querySelector('.nk-gia-wrap').style.display = it && laHoaQua(it.nhomHang) ? '' : 'none';
-        };
-        el.querySelector('.nk-xoa').onclick = function(){
-          if ($$('.nk-dong').length > 1) { el.parentNode.removeChild(el); return; }
-          sel.value = ''; sel.onchange();
-          el.querySelector('.nk-sl').value = ''; el.querySelector('.nk-gia').value = '';
-        };
+      var capNhatNut = function(){
+        var n = chon.length, nut = $('#nkTiep');
+        nut.disabled = !n;
+        nut.textContent = n ? 'Tiếp tục – nhập số lượng (' + n + ' món)' : 'Chọn mặt hàng để tiếp tục';
       };
-      $$('.nk-dong').forEach(ganDong);
-      $('#nkThem').onclick = function(){
-        $('#nkDs').insertAdjacentHTML('beforeend', dong());
-        var ds = $$('.nk-dong');
-        ganDong(ds[ds.length - 1]);
+
+      $$('.nk-o').forEach(function(o){
+        o.onclick = function(){
+          var ma = o.getAttribute('data-m'), i = chon.indexOf(ma);
+          if (i >= 0) { chon.splice(i, 1); o.classList.remove('on'); }
+          else { chon.push(ma); o.classList.add('on'); }
+          capNhatNut();
+        };
+      });
+
+      $('#nkTim').oninput = function(){
+        var q = boDau(this.value);
+        $$('.nk-o').forEach(function(o){ o.style.display = !q || o.getAttribute('data-t').indexOf(q) >= 0 ? '' : 'none'; });
+        $$('.nk-luoi').forEach(function(l){
+          var con = [].some.call(l.querySelectorAll('.nk-o'), function(o){ return o.style.display !== 'none'; });
+          l.style.display = con ? '' : 'none';
+          l.previousElementSibling.style.display = con ? '' : 'none';
+        });
+      };
+
+      var luuGiaTri = function(){
+        $$('.nk-dong').forEach(function(el){
+          giaTri[el.getAttribute('data-m')] = { sl: el.querySelector('.nk-sl').value, gia: el.querySelector('.nk-gia') ? el.querySelector('.nk-gia').value : '' };
+        });
+      };
+
+      $('#nkTiep').onclick = function(){
+        $('#nkDs').innerHTML =
+          '<div class="kho-head c2"><div>Mặt hàng</div><div class="center">Số lượng</div></div>' +
+          chon.map(function(ma){
+            var it = timHang(ma), cu = giaTri[ma] || {};
+            var qua = laHoaQua(it.nhomHang);
+            return '<div class="kho-item c2 nk-dong" data-m="' + h(ma) + '">' +
+              '<div><div class="nm">' + h(it.tenHang) + '</div><div class="un">' + h(it.donVi) + '</div>' +
+                (qua ? '<input class="inp nk-gia mt" inputmode="numeric" placeholder="Đơn giá hôm đó (đ)" value="' + h(cu.gia || '') + '" style="text-align:left;font-size:13px">' : '') +
+              '</div>' +
+              '<input class="inp nk-sl" inputmode="decimal" placeholder="0" value="' + h(cu.sl || '') + '"></div>';
+          }).join('');
+        $('#nkB1').style.display = 'none';
+        $('#nkB2').style.display = '';
+        var dau = $('.nk-sl'); if (dau) dau.focus();
+      };
+
+      $('#nkLai').onclick = function(){
+        luuGiaTri();
+        $('#nkB2').style.display = 'none';
+        $('#nkB1').style.display = '';
       };
 
       $('#kkGui').onclick = function(){
-        var items = [], thieuGia = [];
+        var items = [], thieuSL = [], thieuGia = [];
         $$('.nk-dong').forEach(function(el){
-          var it = timHang(el.querySelector('.nk-hang').value);
+          var it = timHang(el.getAttribute('data-m'));
           var sl = Math.abs(Number(el.querySelector('.nk-sl').value.trim().replace(',', '.')));
-          if (!it || !sl) return;
-          var gia = Number(el.querySelector('.nk-gia').value.replace(/[^\d]/g, '')) || 0;
+          var o = el.querySelector('.nk-gia');
+          var gia = o ? Number(o.value.replace(/[^\d]/g, '')) || 0 : 0;
+          if (!sl) { thieuSL.push(it.tenHang); return; }
           if (laHoaQua(it.nhomHang) && !gia) thieuGia.push(it.tenHang);
           items.push({ maHang: it.maHang, soLuong: sl, donGia: gia });
         });
-        if (!items.length){ toast('Chưa chọn mặt hàng và số lượng.', 'warn'); return; }
+        if (thieuSL.length){ toast('Chưa điền số lượng: ' + thieuSL.join(', '), 'warn', 6000); return; }
         if (thieuGia.length){ toast('Hoa quả phải điền đơn giá: ' + thieuGia.join(', '), 'warn', 6000); return; }
         var ngay = $('#nkNgay').value;
         xacNhan('Gửi phiếu nhập kho ngày ' + ngayVN(ngay) + ' gồm ' + items.length + ' mặt hàng?', { ok:'Gửi' }).then(function(y){
