@@ -25,6 +25,7 @@ export const SHEETS = {
   HANG:       'DanhMucHang',
   KIEMKHO:    'KiemKho',
   NHAPXUAT:   'NhapXuatKho',
+  DEMKHO:     'DemKho',
   GIAOCA:     'GiaoCa',
   THUONGPHAT: 'ThuongPhat',
   BANGLUONG:  'BangLuong',
@@ -61,6 +62,10 @@ export const HEADERS = {
     'id', 'thoiGian', 'ngay', 'maCa', 'loai', 'maNV', 'hoTen', 'maHang', 'tenHang', 'donVi',
     'soLuong', 'donGia', 'thanhTien', 'tonTruoc', 'tonSau', 'ghiChu',
     'trangThaiDuyet', 'nguoiDuyet', 'thoiGianDuyet'
+  ],
+  [SHEETS.DEMKHO]: [
+    'id', 'thoiGian', 'ngay', 'maCa', 'maNV', 'hoTen', 'maHang', 'tenHang', 'donVi',
+    'soDem', 'tonHeThong', 'chenhLech', 'ghiChu', 'trangThaiDuyet', 'nguoiDuyet', 'thoiGianDuyet'
   ],
   [SHEETS.GIAOCA]: [
     'id', 'thoiGian', 'ngay', 'maCa', 'maNVGiao', 'tenNVGiao', 'maNVNhan', 'tenNVNhan',
@@ -150,9 +155,11 @@ export function chuoiTuPhut_(p) {
   return pad2_(Math.floor(p / 60)) + ':' + pad2_(p % 60);
 }
 
+// 3 chữ số ngẫu nhiên trùng khá thường khi tạo nhiều mã trong cùng một giây
+// (vd: báo 10 ca một lần) -> dùng 8 ký tự hex ngẫu nhiên.
 export function uid_(prefix) {
   return (prefix || '') + dinhDangNgay_(now_(), 'yyMMddHHmmss') +
-         Math.floor(Math.random() * 900 + 100);
+         crypto.randomBytes(4).toString('hex').toUpperCase();
 }
 
 export function trongKhoang_(ngay, tu, den) {

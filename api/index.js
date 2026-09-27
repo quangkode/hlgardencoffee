@@ -17,7 +17,7 @@ import * as B from './_lib/business.js';
 const NEN = [SHEETS.NHANVIEN, SHEETS.CAIDAT, SHEETS.NHATKY];
 
 const CC = SHEETS.CHAMCONG, CA = SHEETS.CA, LICH = SHEETS.LICH;
-const KHO = SHEETS.KIEMKHO, HANG = SHEETS.HANG, GC = SHEETS.GIAOCA, NX = SHEETS.NHAPXUAT;
+const KHO = SHEETS.KIEMKHO, HANG = SHEETS.HANG, GC = SHEETS.GIAOCA, NX = SHEETS.NHAPXUAT, DEM = SHEETS.DEMKHO;
 const TP = SHEETS.THUONGPHAT, BL = SHEETS.BANGLUONG;
 
 const LUONG = [CC, CA, TP, BL];
@@ -49,7 +49,8 @@ const THAO_TAC = {
   'kho.phieuMoi':  { sheets: [HANG, KHO, NX, CA, CC],   fn: nv => B.khoPhieuMoi_(nv) },
   'kho.gui':       { sheets: [HANG, KHO, NX, CA, CC], fn: (nv, p) => B.khoGui_(nv, p) },
   'kho.nhapXuat':  { sheets: [HANG, KHO, NX, CA, CC], fn: (nv, p) => B.khoNhapXuat_(nv, p) },
-  'kho.lichSu':    { sheets: [KHO, NX],                 fn: (nv, p) => B.khoLichSu_(nv, p) },
+  'kho.dem':       { sheets: [HANG, KHO, NX, DEM, CA, CC], fn: (nv, p) => B.khoDem_(nv, p) },
+  'kho.lichSu':    { sheets: [KHO, NX, DEM],                 fn: (nv, p) => B.khoLichSu_(nv, p) },
 
   'ql.nhapKhoExcel': { ql: true, sheets: [HANG, KHO], fn: (nv, p) => B.qlNhapKhoExcel_(nv, p) },
 
@@ -85,8 +86,9 @@ const THAO_TAC = {
   'ql.luuThuongPhat': { ql: true, sheets: [TP], fn: (nv, p) => B.qlLuuThuongPhat_(nv, p) },
   'ql.xoaThuongPhat': { ql: true, sheets: [TP], fn: (nv, p) => B.qlXoaThuongPhat_(nv, p) },
 
-  'ql.kho':      { ql: true, sheets: [KHO, NX, HANG], fn: (nv, p) => B.qlKho_(nv, p) },
+  'ql.kho':      { ql: true, sheets: [KHO, NX, DEM, HANG], fn: (nv, p) => B.qlKho_(nv, p) },
   'ql.duyetKiemKho': { ql: true, sheets: [KHO], fn: (nv, p) => B.qlDuyetKiemKho_(nv, p) },
+  'ql.duyetDem':      { ql: true, sheets: [DEM], fn: (nv, p) => B.qlDuyetDem_(nv, p) },
   'ql.duyetNhapXuat': { ql: true, sheets: [KHO, NX], fn: (nv, p) => B.qlDuyetNhapXuat_(nv, p) },
   'ql.dsPhieuChoDuyet': { ql: true, sheets: [KHO], fn: () => B.qlDsPhieuChoDuyet_() },
   'ql.luuHang':  { ql: true, sheets: [HANG],      fn: (nv, p) => B.qlLuuHang_(nv, p) },

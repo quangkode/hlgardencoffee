@@ -589,7 +589,80 @@ export function khoLichSu_(nv, p) {
   const den = dstr_(p.denNgay) || today_();
   const rows = readAll_(SHEETS.KIEMKHO).filter(r => trongKhoang_(r.ngay, tu, den));
   const nx = readAll_(SHEETS.NHAPXUAT).filter(r => trongKhoang_(r.ngay, tu, den));
-  return { tu, den, phieu: gomPhieuKho_(rows).slice(0, 60), phieuNX: gomPhieuNX_(nx).slice(0, 60) };
+  const dem = readAll_(SHEETS.DEMKHO).filter(r => trongKhoang_(r.ngay, tu, den));
+  return {
+    tu, den, phieu: gomPhieuKho_(rows).slice(0, 60),
+    phieuNX: gomPhieuNX_(nx).slice(0, 60), phieuDem: gomPhieuDem_(dem).slice(0, 60)
+  };
+}
+
+/* ================= KIỂM ĐẾM (nhân viên đếm tồn thực tế) =================
+ * Chỉ là bản ghi số đếm để quản lý duyệt và nắm tình trạng kho. KHÔNG tạo
+ * phiếu kiểm kho, KHÔNG làm thay đổi tồn kho. */
+
+function laHoaQua_(nhom) { return chuanHoaTenHang_(nhom) === 'hoa qua'; }
+
+export function gomPhieuDem_(rows) {
+  const map = {};
+  rows.forEach(r => {
+    const id = String(r.id);
+    if (!map[id]) {
+      map[id] = {
+        id, thoiGian: String(r.thoiGian || ''), ngay: dstr_(r.ngay), maCa: String(r.maCa || ''),
+        maNV: String(r.maNV || ''), hoTen: String(r.hoTen || ''), ghiChu: String(r.ghiChu || ''),
+        trangThaiDuyet: String(r.trangThaiDuyet || ''), soLech: 0, items: []
+      };
+    }
+    const lech = num_(r.chenhLech);
+    if (lech) map[id].soLech++;
+    map[id].items.push({
+      maHang: String(r.maHang), tenHang: String(r.tenHang || ''), donVi: String(r.donVi || ''),
+      soDem: num_(r.soDem), tonHeThong: num_(r.tonHeThong), chenhLech: lech
+    });
+  });
+  return Object.values(map).sort((a, b) => b.thoiGian.localeCompare(a.thoiGian));
+}
+
+export function khoDem_(nv, p) {
+  const items = Array.isArray(p.items) ? p.items : [];
+  const dm = {};
+  khoDanhMuc_().forEach(h => { dm[h.maHang] = h; });
+  const ton = tonGanNhat_();
+  const id = uid_('DK');
+  const stamp = nowStamp_();
+  const maCa = String(p.maCa || caGoiYHienTai_(nv)).trim().toUpperCase();
+
+  const rows = [];
+  items.forEach(it => {
+    const ma = String(it.maHang || '').trim();
+    const h = dm[ma];
+    if (!h || it.soDem === '' || it.soDem === null || it.soDem === undefined) return;
+    const soDem = num_(it.soDem);
+    const heThong = ton[ma] ? ton[ma].thucTe : 0;
+    rows.push({
+      id, thoiGian: stamp, ngay: today_(), maCa, maNV: nv.maNV, hoTen: nv.hoTen,
+      maHang: ma, tenHang: h.tenHang, donVi: h.donVi,
+      soDem, tonHeThong: heThong, chenhLech: lam3_(soDem - heThong),
+      ghiChu: String(p.ghiChu || ''), trangThaiDuyet: 'ChoDuyet', nguoiDuyet: '', thoiGianDuyet: ''
+    });
+  });
+  if (!rows.length) throw new Error('Chưa nhập số đếm cho mặt hàng nào.');
+  withLock_(() => appendMany_(SHEETS.DEMKHO, rows));
+  ghiNhatKy_(nv, 'KiemDem', id + ' — ' + rows.length + ' mặt hàng');
+  return { thongBao: 'Đã gửi bản kiểm kho ' + rows.length + ' mặt hàng, chờ quản lý duyệt.', maPhieu: id };
+}
+
+export function qlDuyetDem_(nv, p) {
+  const id = String(p.id || '').trim();
+  const rows = readAll_(SHEETS.DEMKHO).filter(r => String(r.id) === id);
+  if (!rows.length) throw new Error('Không tìm thấy bản kiểm ' + id + '.');
+  if (rows.some(r => String(r.trangThaiDuyet).trim() !== 'ChoDuyet')) throw new Error('Bản kiểm này đã được xử lý rồi.');
+  const duyet = p.duyet !== false;
+  rows.forEach(r => patchRow_(SHEETS.DEMKHO, r._row, {
+    trangThaiDuyet: duyet ? 'DaDuyet' : 'TuChoi', nguoiDuyet: nv.maNV, thoiGianDuyet: nowStamp_()
+  }));
+  ghiNhatKy_(nv, duyet ? 'DuyetKiemDem' : 'TuChoiKiemDem', id);
+  return { thongBao: duyet ? 'Đã duyệt bản kiểm kho.' : 'Đã từ chối bản kiểm kho.' };
 }
 
 /* ================= NHẬP / XUẤT KHO ================= */
@@ -627,10 +700,12 @@ export function khoNhapXuat_(nv, p) {
   const ton = tonGanNhat_();
   const id = uid_(loai === 'Nhap' ? 'NK' : 'XK');
   const stamp = nowStamp_();
-  const ngay = today_();
+  const ngay = dstr_(p.ngay) || today_();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ngay)) throw new Error('Ngày nhập kho không hợp lệ.');
+  if (ngay > today_()) throw new Error('Không chọn được ngày trong tương lai.');
   const maCa = String(p.maCa || caGoiYHienTai_(nv)).trim().toUpperCase();
 
-  const rows = [], thieu = [];
+  const rows = [], thieu = [], thieuGia = [];
   items.forEach(it => {
     const ma = String(it.maHang || '').trim();
     const h = dm[ma];
@@ -645,17 +720,21 @@ export function khoNhapXuat_(nv, p) {
         return;
       }
     }
+    const giaNhap = num_(it.donGia);
+    if (loai === 'Nhap' && laHoaQua_(h.nhomHang) && !(giaNhap > 0)) { thieuGia.push(h.tenHang); return; }
+    const donGia = giaNhap > 0 ? giaNhap : h.giaVon;
     rows.push({
       id, thoiGian: stamp, ngay, maCa, loai,
       maNV: nv.maNV, hoTen: nv.hoTen,
       maHang: ma, tenHang: h.tenHang, donVi: h.donVi,
-      soLuong: sl, donGia: h.giaVon, thanhTien: Math.round(sl * h.giaVon),
+      soLuong: sl, donGia, thanhTien: Math.round(sl * donGia),
       tonTruoc: t.thucTe, tonSau: lam3_(t.thucTe + (loai === 'Nhap' ? sl : -sl)),
       ghiChu: String(p.ghiChu || ''),
       trangThaiDuyet: 'ChoDuyet', nguoiDuyet: '', thoiGianDuyet: ''
     });
   });
 
+  if (thieuGia.length) throw new Error('Hoa quả phải nhập đơn giá của ngày nhập:\n• ' + thieuGia.join('\n• '));
   if (thieu.length) throw new Error('Không đủ hàng để xuất:\n• ' + thieu.join('\n• '));
   if (!rows.length) throw new Error('Chưa nhập số lượng cho mặt hàng nào.');
   withLock_(() => appendMany_(SHEETS.NHAPXUAT, rows));
@@ -1848,6 +1927,8 @@ export function qlKho_(nv, p) {
     phieuChoDuyet,
     phieuNX: gomPhieuNX_(nxTrongKy).slice(0, 60),
     phieuNXChoDuyet: gomPhieuNX_(tatCaNX.filter(r => String(r.trangThaiDuyet).trim() === 'ChoDuyet')),
+    phieuDem: gomPhieuDem_(readAll_(SHEETS.DEMKHO).filter(r => trongKhoang_(r.ngay, tu, den))).slice(0, 300),
+    phieuDemChoDuyet: gomPhieuDem_(readAll_(SHEETS.DEMKHO).filter(r => String(r.trangThaiDuyet).trim() === 'ChoDuyet')),
     soMHKiem,
     soMHDuoiDM,
     danhMuc: readAll_(SHEETS.HANG).map(r => ({

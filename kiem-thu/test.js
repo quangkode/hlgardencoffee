@@ -51,7 +51,7 @@ function caiDat(key) {
 nhom('1. Khởi tạo tự động ở lượt gọi đầu tiên');
 let r = await api(null, 'appInfo', {});
 ok('gọi được khi bảng tính còn trống', r.ok === true, r.error);
-ok('tạo đủ 12 sheet', tenCacSheet().length === 12, tenCacSheet());
+ok('tạo đủ 13 sheet', tenCacSheet().length === 13, tenCacSheet());
 ok('có sheet ChamCong', tenCacSheet().includes('ChamCong'));
 ok('seed 15 cài đặt', docSheet('CaiDat').length === 15, docSheet('CaiDat').length);
 ok('seed 4 ca làm việc', docSheet('CaLamViec').length === 4);
@@ -674,6 +674,41 @@ ok('báo cáo: tổng nhập 5, tổng xuất 4 (chỉ tính phiếu đã duyệ
 ok('báo cáo có danh sách phiếu nhập/xuất (3 phiếu)', khoQL3.phieuNX.length === 3, khoQL3.phieuNX.length);
 ok('nhân viên xem lịch sử thấy phiếu nhập/xuất',
    (await must(tkNV, 'kho.lichSu', { tuNgay: '2026-09-21', denNgay: '2026-09-21' })).phieuNX.length === 3);
+
+/* ============ 18. Kiểm đếm của nhân viên & nhập kho hoa quả ============ */
+nhom('18. Kiểm đếm (không đổi tồn) & nhập kho theo ngày, hoa quả có đơn giá');
+
+datGio('2026-09-22T01:00:00Z');
+const soKKTruocDem = docSheet('KiemKho').length;
+const tonTruocDem = (await hangH005()).tonTruoc;
+const pDem = await must(tkNV, 'kho.dem', { maCa: 'CA1', items: [{ maHang: 'H005', soDem: 9 }] });
+const dongDem = docSheet('DemKho').filter(x => x.id === pDem.maPhieu);
+ok('bản kiểm đếm ghi vào sheet DemKho', dongDem.length === 1, dongDem);
+ok('ghi kèm tồn theo sổ và chênh lệch', Number(dongDem[0].tonHeThong) === tonTruocDem && Number(dongDem[0].chenhLech) === 9 - tonTruocDem, dongDem[0]);
+ok('kiểm đếm KHÔNG tạo phiếu kiểm kho', docSheet('KiemKho').length === soKKTruocDem);
+ok('nhân viên không tự duyệt được', (await api(tkNV, 'ql.duyetDem', { id: pDem.maPhieu, duyet: true })).ok === false);
+await must(tkQL, 'ql.duyetDem', { id: pDem.maPhieu, duyet: true });
+ok('duyệt xong vẫn KHÔNG làm đổi tồn', (await hangH005()).tonTruoc === tonTruocDem);
+ok('không duyệt lại lần 2 được', (await api(tkQL, 'ql.duyetDem', { id: pDem.maPhieu, duyet: true })).ok === false);
+const khoQL4 = await must(tkQL, 'ql.kho', { tuNgay: '2026-09-22', denNgay: '2026-09-22' });
+ok('quản lý thấy bản kiểm đếm', khoQL4.phieuDem.length === 1 && khoQL4.phieuDem[0].trangThaiDuyet === 'DaDuyet');
+ok('bản kiểm đếm không nằm trong danh sách phiếu kiểm', khoQL4.phieu.length === 0, khoQL4.phieu.length);
+ok('nhân viên xem lịch sử thấy bản kiểm đếm',
+   (await must(tkNV, 'kho.lichSu', { tuNgay: '2026-09-22', denNgay: '2026-09-22' })).phieuDem.length === 1);
+
+await must(tkQL, 'ql.luuHang', { tenHang: 'Xoài', donVi: 'kg', nhomHang: 'Hoa quả', tonDinhMuc: 0, giaVon: 0 });
+const maXoai = docSheet('DanhMucHang').find(x => x.tenHang === 'Xoài').maHang;
+ok('hoa quả thiếu đơn giá bị chặn',
+   (await api(tkNV, 'kho.nhapXuat', { loai: 'Nhap', items: [{ maHang: maXoai, soLuong: 2 }] })).ok === false);
+ok('ngày nhập ở tương lai bị chặn',
+   (await api(tkNV, 'kho.nhapXuat', { loai: 'Nhap', ngay: '2026-09-30', items: [{ maHang: maXoai, soLuong: 2, donGia: 35000 }] })).ok === false);
+const pXoai = await must(tkNV, 'kho.nhapXuat', { loai: 'Nhap', ngay: '2026-09-20', items: [{ maHang: maXoai, soLuong: 2, donGia: 35000 }] });
+const dongXoai = docSheet('NhapXuatKho').find(x => x.id === pXoai.maPhieu);
+ok('nhập kho ghi đúng ngày đã chọn', dongXoai.ngay === '2026-09-20', dongXoai.ngay);
+ok('ghi đúng đơn giá theo ngày và thành tiền', Number(dongXoai.donGia) === 35000 && Number(dongXoai.thanhTien) === 70000, dongXoai);
+const pH5 = await must(tkNV, 'kho.nhapXuat', { loai: 'Nhap', items: [{ maHang: 'H005', soLuong: 1 }] });
+ok('món không phải hoa quả không bắt buộc đơn giá (lấy giá vốn)',
+   Number(docSheet('NhapXuatKho').find(x => x.id === pH5.maPhieu).donGia) === 150000);
 
 console.log('\n───────────────');
 console.log(dat + ' đạt / ' + hong + ' lỗi');
