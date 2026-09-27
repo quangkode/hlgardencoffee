@@ -1736,6 +1736,53 @@ function moChiTietKho(x){
 
 var CHART_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#06b6d4','#84cc16'];
 
+var _locPK = { tt: '', nv: '', ca: '', q: '', hao: false };
+
+function boDau(x){
+  return String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().trim();
+}
+
+function veDsPhieuKiem(){
+  var L = _locPK, q = boDau(L.q);
+  var tatCa = S.cache.kho.phieu;
+  var ds = tatCa.filter(function(p){
+    var tt = p.trangThaiDuyet || 'DaDuyet';
+    if (L.tt && tt !== L.tt) return false;
+    if (L.nv && p.hoTen !== L.nv) return false;
+    if (L.ca && p.maCa !== L.ca) return false;
+    if (q && !p.items.some(function(i){ return boDau(i.tenHang).indexOf(q) >= 0; })) return false;
+    if (L.hao && !p.items.some(function(i){ return Number(i.haoHut) > 0; })) return false;
+    return true;
+  });
+  $('#pkDem').textContent = 'Hiện ' + ds.length + ' / ' + tatCa.length + ' phiếu trong khoảng ngày đã chọn';
+  $('#pkList').innerHTML = ds.length ? ds.map(function(p){
+      var ttDuyet = p.trangThaiDuyet;
+      var badge = ttDuyet === 'ChoDuyet' ? '<span class="chip warn">Chờ duyệt</span>'
+        : ttDuyet === 'TuChoi' ? '<span class="chip err">Từ chối</span>'
+        : ttDuyet === 'DaDuyet' ? '<span class="chip ok">Đ\u00e3 duyệt</span>'
+        : '<span class="chip grey">c\u0169</span>';
+      return '<div class="card tight">' +
+        '<div class="spread"><div><b>' + h(ngayVN(p.ngay)) + '</b> \u00b7 ' + h(p.maCa) + ' \u00b7 ' + h(p.hoTen) + '</div>' +
+        badge + '</div>' +
+        '<div class="scrollx mt"><table class="tbl" style="table-layout:fixed;width:100%">' +
+        '<tr><th style="width:auto;text-align:left">H\u00e0ng</th><th class="right" style="width:60px">Tr\u01b0\u1edbc</th><th class="right" style="width:50px">Nh\u1eadp</th><th class="right" style="width:65px">T\u1ed3n kho</th><th class="right" style="width:45px">Hao</th></tr>' +
+        p.items.filter(function(i){ return !q || boDau(i.tenHang).indexOf(q) >= 0; }).map(function(i){
+          return '<tr><td>' + h(i.tenHang) + '</td><td class="right">' + i.tonTruoc + '</td>' +
+            '<td class="right">' + i.nhapThem + '</td>' +
+            '<td class="right"' + (i.duoiDinhMuc ? ' style="color:var(--err);font-weight:700"' : '') + '>' + i.thucTe + '</td>' +
+            '<td class="right">' + i.haoHut + '</td></tr>';
+        }).join('') + '</table></div>' +
+        (ttDuyet === 'ChoDuyet' ? '<div class="pc-actions mt">' +
+          '<button class="btn ok grow sm" onclick="duyetKiemKho(\'' + p.id + '\',true)">\u2713 Duyệt</button>' +
+          '<button class="btn err sm" onclick="duyetKiemKho(\'' + p.id + '\',false)">\u2717 Từ chối</button></div>' : '') +
+        (p.items.filter(function(i){ return i.ghiChu; }).length
+          ? '<div class="xs muted mt">' + h(p.items.filter(function(i){ return i.ghiChu; })
+              .map(function(i){ return i.tenHang + ': ' + i.ghiChu; }).join(' \u00b7 ')) + '</div>' : '') +
+        '</div>';
+  }).join('') : trong('&#128269;', 'Không có phiếu nào khớp bộ lọc.');
+}
+
 function tabKhoQL(n){
   ['#kT1','#kT2','#kT3','#kT4'].forEach(function(s, i){ $(s).className = (i + 1 === n) ? 'on' : ''; });
   var d = S.cache.kho, b = $('#kBody');
@@ -1808,31 +1855,41 @@ function tabKhoQL(n){
     }
 
   } else if (n === 2){
-    b.innerHTML = d.phieu.length ? d.phieu.map(function(p){
-      var ttDuyet = p.trangThaiDuyet;
-      var badge = ttDuyet === 'ChoDuyet' ? '<span class="chip warn">Chờ duyệt</span>'
-        : ttDuyet === 'TuChoi' ? '<span class="chip err">Từ chối</span>'
-        : ttDuyet === 'DaDuyet' ? '<span class="chip ok">Đ\u00e3 duyệt</span>'
-        : '<span class="chip grey">c\u0169</span>';
-      return '<div class="card tight">' +
-        '<div class="spread"><div><b>' + h(ngayVN(p.ngay)) + '</b> \u00b7 ' + h(p.maCa) + ' \u00b7 ' + h(p.hoTen) + '</div>' +
-        badge + '</div>' +
-        '<div class="scrollx mt"><table class="tbl" style="table-layout:fixed;width:100%">' +
-        '<tr><th style="width:auto;text-align:left">H\u00e0ng</th><th class="right" style="width:60px">Tr\u01b0\u1edbc</th><th class="right" style="width:50px">Nh\u1eadp</th><th class="right" style="width:65px">T\u1ed3n kho</th><th class="right" style="width:45px">Hao</th></tr>' +
-        p.items.map(function(i){
-          return '<tr><td>' + h(i.tenHang) + '</td><td class="right">' + i.tonTruoc + '</td>' +
-            '<td class="right">' + i.nhapThem + '</td>' +
-            '<td class="right"' + (i.duoiDinhMuc ? ' style="color:var(--err);font-weight:700"' : '') + '>' + i.thucTe + '</td>' +
-            '<td class="right">' + i.haoHut + '</td></tr>';
-        }).join('') + '</table></div>' +
-        (ttDuyet === 'ChoDuyet' ? '<div class="pc-actions mt">' +
-          '<button class="btn ok grow sm" onclick="duyetKiemKho(\'' + p.id + '\',true)">\u2713 Duyệt</button>' +
-          '<button class="btn err sm" onclick="duyetKiemKho(\'' + p.id + '\',false)">\u2717 Từ chối</button></div>' : '') +
-        (p.items.filter(function(i){ return i.ghiChu; }).length
-          ? '<div class="xs muted mt">' + h(p.items.filter(function(i){ return i.ghiChu; })
-              .map(function(i){ return i.tenHang + ': ' + i.ghiChu; }).join(' \u00b7 ')) + '</div>' : '') +
-        '</div>';
-    }).join('') : trong('&#128230;', 'Ch\u01b0a c\u00f3 phi\u1ebfu ki\u1ec3m kho.');
+    var dsNV = [], dsCaPK = [];
+    d.phieu.forEach(function(p){
+      if (dsNV.indexOf(p.hoTen) < 0) dsNV.push(p.hoTen);
+      if (dsCaPK.indexOf(p.maCa) < 0) dsCaPK.push(p.maCa);
+    });
+    var L = _locPK;
+    var chipTT = function(v, t){
+      return '<button class="btn sm ' + (L.tt === v ? '' : 'ghost') + '" data-tt="' + v + '">' + t + '</button>';
+    };
+    b.innerHTML =
+      '<div class="card tight">' +
+        '<div class="row wrap" style="gap:6px;margin-bottom:8px">' +
+          chipTT('', 'Tất cả') + chipTT('ChoDuyet', 'Chờ duyệt') + chipTT('DaDuyet', 'Đã duyệt') + chipTT('TuChoi', 'Từ chối') +
+        '</div>' +
+        '<div class="grid2">' +
+          '<select class="inp" id="pkNV"><option value="">Mọi nhân viên</option>' +
+            dsNV.sort().map(function(x){ return '<option' + (L.nv === x ? ' selected' : '') + '>' + h(x) + '</option>'; }).join('') + '</select>' +
+          '<select class="inp" id="pkCa"><option value="">Mọi ca</option>' +
+            dsCaPK.sort().map(function(x){ return '<option' + (L.ca === x ? ' selected' : '') + '>' + h(x) + '</option>'; }).join('') + '</select>' +
+        '</div>' +
+        '<input class="inp mt" id="pkQ" placeholder="Tìm mặt hàng…" value="' + h(L.q) + '">' +
+        '<label class="small mt" style="display:flex;align-items:center;gap:6px">' +
+          '<input type="checkbox" id="pkHao"' + (L.hao ? ' checked' : '') + '> Chỉ phiếu có hao hụt</label>' +
+      '</div>' +
+      '<div class="xs muted mb" id="pkDem"></div>' +
+      '<div id="pkList"></div>';
+
+    $$('[data-tt]').forEach(function(e){
+      e.onclick = function(){ _locPK.tt = e.getAttribute('data-tt'); tabKhoQL(2); };
+    });
+    $('#pkNV').onchange = function(){ _locPK.nv = this.value; veDsPhieuKiem(); };
+    $('#pkCa').onchange = function(){ _locPK.ca = this.value; veDsPhieuKiem(); };
+    $('#pkQ').oninput = function(){ _locPK.q = this.value; veDsPhieuKiem(); };
+    $('#pkHao').onchange = function(){ _locPK.hao = this.checked; veDsPhieuKiem(); };
+    veDsPhieuKiem();
 
   } else if (n === 4){
     var ds = d.phieuNX || [];

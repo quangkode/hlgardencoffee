@@ -1841,7 +1841,7 @@ export function qlKho_(nv, p) {
 
   return {
     tu, den,
-    phieu: gomPhieuKho_(rows).slice(0, 60),
+    phieu: gomPhieuKho_(rows).slice(0, 300),
     thongKe,
     nhomChart,
     phieuChoDuyet,
