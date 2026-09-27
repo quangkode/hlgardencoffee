@@ -438,11 +438,17 @@ export function khoDanhMuc_() {
     }));
 }
 
+/**
+ * Tồn gần nhất của mỗi mặt hàng, để làm "tồn trước" cho phiếu kế tiếp.
+ * Lấy theo dòng MỚI NHẤT theo thời gian, bất kể đã duyệt hay chưa — vì trong
+ * ngày nhân viên có thể kiểm/nhập/xuất liên tiếp nhiều lần trước khi quản lý
+ * kịp duyệt, nếu chỉ tính dòng đã duyệt thì phiếu sau sẽ lấy nhầm tồn cũ.
+ * Chỉ bỏ qua dòng đã bị quản lý TỪ CHỐI (coi như chưa từng xảy ra).
+ */
 export function tonGanNhat_() {
   const map = {};
   readAll_(SHEETS.KIEMKHO).forEach(r => {
-    const tt = String(r.trangThaiDuyet || '').trim();
-    if (tt && tt !== 'DaDuyet') return; // Chỉ đếm phiếu đã duyệt hoặc phiếu cũ chưa có cột
+    if (String(r.trangThaiDuyet || '').trim() === 'TuChoi') return;
     const ma = String(r.maHang).trim();
     const stamp = String(r.thoiGian || '');
     if (!map[ma] || stamp >= map[ma].stamp) map[ma] = { stamp, thucTe: num_(r.thucTe) };
@@ -1637,7 +1643,9 @@ export function qlKho_(nv, p) {
   const ton = tonGanNhat_();
   const theoHang = {};
 
-  rows.forEach(r => {
+  // Phiếu bị từ chối vẫn hiển thị trong danh sách phiếu bên dưới, nhưng không
+  // tính vào thống kê hao hụt (quản lý đã xác định dòng đó là sai/không hợp lệ).
+  rows.filter(r => String(r.trangThaiDuyet || '').trim() !== 'TuChoi').forEach(r => {
     const ma = String(r.maHang);
     if (!theoHang[ma]) {
       theoHang[ma] = {
@@ -1714,6 +1722,22 @@ export function qlLuuHang_(nv, p) {
   if (cu) writeRow_(SHEETS.HANG, cu._row, obj); else appendObj_(SHEETS.HANG, obj);
   ghiNhatKy_(nv, 'LuuHang', ma);
   return { thongBao: 'Đã lưu mặt hàng ' + obj.tenHang + '.' };
+}
+
+/** Xoá hẳn 1 mặt hàng khỏi danh mục. Lịch sử kiểm kho cũ vẫn giữ nguyên
+ *  (mỗi dòng kiểm kho tự lưu sẵn tên hàng/đơn vị của nó, không tra cứu ngược
+ *  lại danh mục), nên xoá mặt hàng không làm mất báo cáo hao hụt trong quá khứ. */
+export function qlXoaHang_(nv, p) {
+  const ma = String(p.maHang || '').trim().toUpperCase();
+  const r = findBy_(SHEETS.HANG, 'maHang', ma);
+  if (!r) throw new Error('Không tìm thấy mặt hàng.');
+  const soLanKiem = readAll_(SHEETS.KIEMKHO).filter(x => String(x.maHang).trim().toUpperCase() === ma).length;
+  deleteRow_(SHEETS.HANG, r._row);
+  ghiNhatKy_(nv, 'XoaHang', ma + ' (' + r.tenHang + ')');
+  return {
+    thongBao: 'Đã xoá mặt hàng ' + r.tenHang + '.' +
+      (soLanKiem ? ' Lịch sử ' + soLanKiem + ' lần kiểm kho cũ của món này vẫn được giữ nguyên.' : '')
+  };
 }
 
 /* ================= QUẢN LÝ: GIAO CA & CÀI ĐẶT ================= */

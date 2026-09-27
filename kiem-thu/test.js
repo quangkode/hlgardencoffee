@@ -570,6 +570,51 @@ ok('áp dụng mà không chọn/từ chối gì thì báo lỗi',
 ok('nhân viên không gọi được API gợi ý chia ca',
    (await api(tkNV, 'ql.goiYChiaCa', { tuNgay: '2026-09-14', denNgay: '2026-09-16' })).ok === false);
 
+/* ============ 16. Sửa lỗi "tồn trước" & xoá mặt hàng ============ */
+nhom('16. Sửa lỗi tồn trước khi chưa duyệt, và xoá mặt hàng');
+
+// H004 (Đường) chưa ai đụng tới trước đó trong bộ test này -> tồn trước = 0
+datGio('2026-09-20T00:00:00Z');
+let pKho1 = await must(tkNV, 'kho.gui', { maCa: 'CA1', items: [{ maHang: 'H004', nhapThem: 0, thucTe: 20 }] });
+ok('phiếu 1: tồn trước = 0 (chưa từng kiểm)',
+   Number(docSheet('KiemKho').find(x => x.id === pKho1.maPhieu).tonTruoc) === 0);
+
+// Chưa duyệt phiếu 1 mà đã kiểm tiếp phiếu 2 -> PHẢI thấy tồn trước = 20 (của phiếu 1),
+// không phải tồn cũ trước đó (bug cũ: chỉ tính phiếu đã duyệt nên sẽ lấy nhầm về 0)
+datGio('2026-09-20T00:05:00Z');
+let pKho2 = await must(tkNV, 'kho.gui', { maCa: 'CA1', items: [{ maHang: 'H004', nhapThem: 0, thucTe: 15 }] });
+const dong2 = docSheet('KiemKho').find(x => x.id === pKho2.maPhieu);
+ok('phiếu 2 (khi phiếu 1 chưa duyệt): tồn trước = 20', Number(dong2.tonTruoc) === 20, dong2.tonTruoc);
+
+// Quản lý từ chối phiếu 2 (huỷ, coi như chưa từng xảy ra)
+await must(tkQL, 'ql.duyetKiemKho', { id: pKho2.maPhieu, duyet: false });
+
+// Kiểm tiếp phiếu 3 -> phải quay lại lấy tồn trước = 20 (của phiếu 1, phiếu 2 đã bị từ chối
+// nên không được tính, dù phiếu 2 mới hơn về thời gian)
+datGio('2026-09-20T00:10:00Z');
+let pKho3 = await must(tkNV, 'kho.gui', { maCa: 'CA1', items: [{ maHang: 'H004', nhapThem: 0, thucTe: 18 }] });
+const dong3 = docSheet('KiemKho').find(x => x.id === pKho3.maPhieu);
+ok('phiếu 3: bỏ qua phiếu 2 đã bị từ chối, tồn trước quay lại = 20', Number(dong3.tonTruoc) === 20, dong3.tonTruoc);
+
+// Báo cáo hao hụt của quản lý: phiếu bị từ chối (phiếu 2, hao=5) không được tính vào tổng hao,
+// nhưng vẫn phải còn hiển thị trong danh sách phiếu để quản lý xem lại lịch sử.
+const khoQL2 = await must(tkQL, 'ql.kho', { tuNgay: '2026-09-20', denNgay: '2026-09-20' });
+const tkH004 = khoQL2.thongKe.find(x => x.maHang === 'H004');
+ok('tổng hao H004 bỏ qua phiếu bị từ chối: -20+2=-18', tkH004.tongHao === -18, tkH004.tongHao);
+ok('số lần kiểm H004 chỉ đếm 2 phiếu hợp lệ (bỏ phiếu bị từ chối)', tkH004.soLanKiem === 2, tkH004.soLanKiem);
+ok('phiếu bị từ chối vẫn còn trong danh sách phiếu để xem lại',
+   khoQL2.phieu.some(p => p.id === pKho2.maPhieu && p.trangThaiDuyet === 'TuChoi'), khoQL2.phieu.map(p => p.id));
+
+// Danh mục hàng: xoá được, lịch sử kiểm kho cũ vẫn còn nguyên
+const soHangTruocXoa = docSheet('DanhMucHang').length;
+const rXoa = await must(tkQL, 'ql.xoaHang', { maHang: 'H004' });
+ok('xoá mặt hàng báo đúng số lần đã kiểm', /3 lần/.test(rXoa.thongBao), rXoa.thongBao);
+ok('xoá khỏi danh mục', docSheet('DanhMucHang').length === soHangTruocXoa - 1);
+ok('không xoá được lần 2 (đã xoá rồi)', (await api(tkQL, 'ql.xoaHang', { maHang: 'H004' })).ok === false);
+ok('lịch sử kiểm kho cũ của H004 vẫn còn nguyên', docSheet('KiemKho').filter(x => x.maHang === 'H004').length === 3);
+ok('nhân viên không gọi được API xoá mặt hàng',
+   (await api(tkNV, 'ql.xoaHang', { maHang: 'H001' })).ok === false);
+
 console.log('\n───────────────');
 console.log(dat + ' đạt / ' + hong + ' lỗi');
 process.exit(hong ? 1 : 0);

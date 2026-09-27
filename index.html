@@ -209,6 +209,7 @@ table.tbl tr:last-child td{border-bottom:0}
 .kho-item .un{font-size:11px;color:var(--tx2)}
 .kho-item .inp{padding:8px;text-align:center;font-size:15px}
 .kho-head{display:grid;grid-template-columns:1fr 72px 72px;gap:8px;font-size:10px;color:var(--tx2);text-transform:uppercase;font-weight:700;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.kho-item.c2,.kho-head.c2{grid-template-columns:1fr 92px}
 
 /* ===== Dashboard KPI & Charts ===== */
 .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
@@ -1008,9 +1009,10 @@ function moFormKho(loai, d){
     : loai === 'nhap' ? 'Nhập số lượng hàng thêm vào kho. Bỏ trống = không nhập mặt hàng đó.'
     : 'Nhập số lượng hàng lấy ra. Bỏ trống = không xuất mặt hàng đó.';
   var colLabel = loai === 'kiem' ? 'Thực tế' : loai === 'nhap' ? 'Số nhập' : 'Số xuất';
+  var khoCls = loai === 'kiem' ? '' : ' c2';
   var colHead = loai === 'kiem'
     ? '\u003cdiv\u003eMặt hàng\u003c/div\u003e\u003cdiv class="center"\u003eNhập thêm\u003c/div\u003e\u003cdiv class="center"\u003eThực tế\u003c/div\u003e'
-    : '\u003cdiv\u003eMặt hàng\u003c/div\u003e\u003cdiv\u003e\u003c/div\u003e\u003cdiv class="center"\u003e' + colLabel + '\u003c/div\u003e';
+    : '\u003cdiv\u003eMặt hàng\u003c/div\u003e\u003cdiv class="center"\u003e' + colLabel + '\u003c/div\u003e';
 
   var body =
     '\u003cdiv class="card"\u003e' +
@@ -1025,7 +1027,7 @@ function moFormKho(loai, d){
     '\u003c/div\u003e' +
     d.nhomHang.map(function(g){
       return '\u003cdiv class="sec-title"\u003e' + h(g.ten) + '\u003c/div\u003e\u003cdiv class="card"\u003e' +
-        '\u003cdiv class="kho-head"\u003e' + colHead + '\u003c/div\u003e' +
+        '\u003cdiv class="kho-head' + khoCls + '"\u003e' + colHead + '\u003c/div\u003e' +
         g.items.map(function(it){
           if (loai === 'kiem') {
             return '\u003cdiv class="kho-item"\u003e' +
@@ -1036,11 +1038,10 @@ function moFormKho(loai, d){
               '\u003cinput class="inp kk-t" inputmode="decimal" data-m="' + h(it.maHang) + '" placeholder="—"\u003e' +
             '\u003c/div\u003e';
           } else {
-            return '\u003cdiv class="kho-item"\u003e' +
+            return '\u003cdiv class="kho-item c2"\u003e' +
               '\u003cdiv\u003e\u003cdiv class="nm"\u003e' + h(it.tenHang) + '\u003c/div\u003e' +
               '\u003cdiv class="un"\u003e' + h(it.donVi) + ' · tồn: ' + it.tonTruoc +
               (it.tonDinhMuc ? ' · ĐM ' + it.tonDinhMuc : '') + '\u003c/div\u003e\u003c/div\u003e' +
-              '\u003cdiv\u003e\u003c/div\u003e' +
               '\u003cinput class="inp kk-sl" inputmode="decimal" data-m="' + h(it.maHang) + '" data-ton="' + it.tonTruoc + '" placeholder="0"\u003e' +
             '\u003c/div\u003e';
           }
@@ -1790,12 +1791,30 @@ function tabKhoQL(n){
 
   } else {
     b.innerHTML =
-      '<div class="card center" style="padding:24px 14px">' +
-        '<div style="font-size:40px;margin-bottom:8px">&#128229;</div>' +
-        '<div class="small muted" style="margin-bottom:14px">Danh mục hàng được quản lý qua file Excel.<br>Chọn file .xls/.xlsx để nhập dữ liệu kiểm kho.</div>' +
+      '<div class="card center" style="padding:18px 14px">' +
+        '<div class="small muted" style="margin-bottom:10px">Có thể nhập hàng loạt từ Excel, hoặc thêm/sửa/xoá từng món bên dưới.</div>' +
         '<button class="btn block" onclick="moNhapExcelKho()">&#128229; Nhập kho từ Excel</button>' +
-      '</div>';
+      '</div>' +
+      '<button class="btn ghost block mb" onclick="suaHang(null)">&#10133; Thêm mặt hàng</button>' +
+      '<div class="card tight">' + (d.danhMuc.length ? d.danhMuc.map(function(x){
+        return '<div class="item">' +
+          '<div class="grow" style="cursor:pointer" onclick="suaHang(' + JSON.stringify(x).replace(/"/g,'&quot;') + ')">' +
+          '<div class="t1">' + h(x.tenHang) +
+          (x.trangThai !== 'HoatDong' ? ' <span class="chip grey">ngừng</span>' : '') + '</div>' +
+          '<div class="t2">' + h(x.donVi) + ' · ' + h(x.nhomHang) +
+          ' · ĐM ' + x.tonDinhMuc + ' · ' + tien(x.giaVon) + '</div></div>' +
+          '<button class="btn sm ghost" onclick="xoaHang(\'' + h(x.maHang) + '\',\'' + h(x.tenHang).replace(/'/g,"&#39;") + '\')">&times;</button></div>';
+      }).join('') : trong('&#128230;', 'Chưa có mặt hàng nào.')) + '</div>';
   }
+}
+
+function xoaHang(maHang, tenHang){
+  xacNhan('Xoá mặt hàng "' + tenHang + '" khỏi danh mục?\nLịch sử kiểm kho cũ vẫn được giữ nguyên.',
+          { ok:'Xoá', nguyHiem:true }).then(function(y){
+    if (!y) return;
+    api('ql.xoaHang', { maHang: maHang }).then(function(r){ toast(r.thongBao, 'ok'); lamMoi(); })
+      .catch(function(e){ toast(e.message, 'err'); });
+  });
 }
 
 function duyetKiemKho(id, duyet){
