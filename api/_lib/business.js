@@ -1421,8 +1421,125 @@ export function qlLuuCa_(nv, p) {
   };
   const cu = findBy_(SHEETS.CA, 'maCa', ma);
   if (cu) writeRow_(SHEETS.CA, cu._row, obj); else appendObj_(SHEETS.CA, obj);
+  setCfgNhieu_({ ['soNguoiCanCa_' + ma]: String(Math.max(0, num_(p.soNguoiCan))) });
   ghiNhatKy_(nv, 'LuuCa', ma);
   return { thongBao: 'Đã lưu ca ' + obj.tenCa + '.' };
+}
+
+/* ================= QUẢN LÝ: TỰ ĐỘNG CHIA CA ================= */
+
+/** Số người cần cho 1 ca/ngày. 0 hoặc chưa cấu hình -> coi như không giới hạn (chỉ 1 người mặc định). */
+function soNguoiCanCa_(maCa) {
+  const n = getCfgNum_('soNguoiCanCa_' + maCa, 1);
+  return n > 0 ? n : Infinity;
+}
+
+/** Ngày Thứ Hai (yyyy-MM-dd) của tuần chứa ngày truyền vào — dùng làm mốc đếm công bằng theo tuần. */
+function dauTuan_(ngay) {
+  const [y, m, d] = String(ngay).split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const thu = dt.getUTCDay();
+  dt.setUTCDate(dt.getUTCDate() - (thu === 0 ? 6 : thu - 1));
+  return dt.toISOString().slice(0, 10);
+}
+
+/**
+ * Gợi ý chia ca tự động: với mỗi ngày+ca đang có người báo ca chờ duyệt,
+ * ưu tiên nhận những người đang có ÍT ca hơn trong tuần đó (đếm trên các ca
+ * đã Đã duyệt/Được xếp), đăng ký trước thì được ưu tiên khi bằng nhau.
+ * Không ghi gì lên sheet — chỉ trả về phương án để quản lý xem trước.
+ */
+export function qlGoiYChiaCa_(nv, p) {
+  const tu = dstr_(p.tuNgay) || today_();
+  const den = dstr_(p.denNgay) || ngayLech_(6);
+  const dsCa = mapCa_();
+  const nvMap = mapNhanVien_();
+
+  const rows = readAll_(SHEETS.LICH).filter(r => trongKhoang_(r.ngay, tu, den));
+
+  const demTuan = {};
+  rows.forEach(r => {
+    const tt = String(r.trangThai).trim();
+    if (tt !== 'DaDuyet' && tt !== 'DuocXep') return;
+    const key = dauTuan_(dstr_(r.ngay)) + '|' + String(r.maNV).trim().toUpperCase();
+    demTuan[key] = (demTuan[key] || 0) + 1;
+  });
+
+  const nhom = {};
+  rows.filter(r => String(r.trangThai).trim() === 'ChoDuyet').forEach(r => {
+    const key = dstr_(r.ngay) + '|' + String(r.maCa).trim().toUpperCase();
+    (nhom[key] = nhom[key] || []).push(r);
+  });
+
+  const canhBaoThieu = [];
+  const danhSach = Object.keys(nhom).sort().map(key => {
+    const [ngay, maCa] = key.split('|');
+    const ca = dsCa[maCa];
+    const tuan = dauTuan_(ngay);
+    const can = soNguoiCanCa_(maCa);
+
+    const xep = nhom[key].map(r => {
+      const maNV = String(r.maNV).trim().toUpperCase();
+      const kTuan = tuan + '|' + maNV;
+      return { r, maNV, soCaTuan: demTuan[kTuan] || 0 };
+    }).sort((a, b) => a.soCaTuan - b.soCaTuan ||
+      String(a.r.thoiGianTao || '').localeCompare(String(b.r.thoiGianTao || '')));
+
+    const soChon = can === Infinity ? xep.length : Math.min(can, xep.length);
+    const chon = xep.slice(0, soChon);
+    const khongChon = xep.slice(soChon);
+    chon.forEach(x => { const k = tuan + '|' + x.maNV; demTuan[k] = (demTuan[k] || 0) + 1; });
+
+    if (can !== Infinity && xep.length < can) {
+      canhBaoThieu.push(ngay + ' ' + (ca ? ca.tenCa : maCa) + ': mới có ' + xep.length + '/' + can + ' người đăng ký');
+    }
+
+    const raGon = x => ({
+      id: String(x.r.id), maNV: x.maNV,
+      hoTen: String(x.r.hoTen || (nvMap[x.maNV] && nvMap[x.maNV].hoTen) || x.maNV),
+      soCaTuan: x.soCaTuan
+    });
+
+    return {
+      ngay, maCa, tenCa: ca ? ca.tenCa : maCa,
+      can: can === Infinity ? null : can,
+      soDangKy: xep.length,
+      chon: chon.map(raGon), khongChon: khongChon.map(raGon)
+    };
+  });
+
+  return { tu, den, danhSach, canhBaoThieu };
+}
+
+/** Áp dụng phương án chia ca sau khi quản lý xem trước và xác nhận (có thể đã chỉnh tay). */
+export function qlApDungChiaCa_(nv, p) {
+  const idsChon = Array.isArray(p.idsChon) ? p.idsChon.map(String) : [];
+  const idsTuChoi = Array.isArray(p.idsTuChoi) ? p.idsTuChoi.map(String) : [];
+  if (!idsChon.length && !idsTuChoi.length) throw new Error('Chưa chọn ca nào để áp dụng.');
+
+  return withLock_(() => {
+    const rows = readAll_(SHEETS.LICH);
+    let soChon = 0, soTuChoi = 0;
+
+    idsChon.forEach(id => {
+      const r = rows.find(x => String(x.id) === id);
+      if (!r || String(r.trangThai).trim() !== 'ChoDuyet') return;
+      patchRow_(SHEETS.LICH, r._row, { trangThai: 'DaDuyet', nguoiDuyet: nv.maNV, thoiGianDuyet: nowStamp_() });
+      soChon++;
+    });
+    idsTuChoi.forEach(id => {
+      const r = rows.find(x => String(x.id) === id);
+      if (!r || String(r.trangThai).trim() !== 'ChoDuyet') return;
+      patchRow_(SHEETS.LICH, r._row, {
+        trangThai: 'TuChoi', ghiChuQL: 'Ca đã đủ người, thuật toán chia ca tự động không chọn',
+        nguoiDuyet: nv.maNV, thoiGianDuyet: nowStamp_()
+      });
+      soTuChoi++;
+    });
+
+    ghiNhatKy_(nv, 'TuDongChiaCa', 'duyet:' + soChon + ' tuchoi:' + soTuChoi);
+    return { thongBao: 'Đã áp dụng: duyệt ' + soChon + ' ca, từ chối ' + soTuChoi + ' ca.' };
+  });
 }
 
 /* ================= QUẢN LÝ: LƯƠNG ================= */
@@ -1621,12 +1738,16 @@ export function qlDocCaiDat_() {
       moTa: String(r.moTa || '')
     })),
     linkSheet: 'https://docs.google.com/spreadsheets/d/' + (process.env.GOOGLE_SHEET_ID || '') + '/edit',
-    dsCa: readAll_(SHEETS.CA).map(r => ({
-      maCa: String(r.maCa).trim(), tenCa: String(r.tenCa || ''),
-      gioBatDau: tstr_(r.gioBatDau), gioKetThuc: tstr_(r.gioKetThuc),
-      soPhutNghi: num_(r.soPhutNghi),
-      trangThai: String(r.trangThai || 'HoatDong').trim(), ghiChu: String(r.ghiChu || '')
-    }))
+    dsCa: readAll_(SHEETS.CA).map(r => {
+      const ma = String(r.maCa).trim();
+      const can = getCfgNum_('soNguoiCanCa_' + ma, 1);
+      return {
+        maCa: ma, tenCa: String(r.tenCa || ''),
+        gioBatDau: tstr_(r.gioBatDau), gioKetThuc: tstr_(r.gioKetThuc),
+        soPhutNghi: num_(r.soPhutNghi), soNguoiCan: can > 0 ? can : 0,
+        trangThai: String(r.trangThai || 'HoatDong').trim(), ghiChu: String(r.ghiChu || '')
+      };
+    })
   };
 }
 

@@ -75,6 +75,8 @@ const THAO_TAC = {
   'ql.xepCa':        { ql: true, sheets: [LICH, CA], fn: (nv, p) => B.qlXepCa_(nv, p) },
   'ql.xoaLichCa':    { ql: true, sheets: [LICH],     fn: (nv, p) => B.qlXoaLichCa_(nv, p) },
   'ql.luuCa':        { ql: true, sheets: [CA],       fn: (nv, p) => B.qlLuuCa_(nv, p) },
+  'ql.goiYChiaCa':   { ql: true, sheets: [LICH, CA], fn: (nv, p) => B.qlGoiYChiaCa_(nv, p) },
+  'ql.apDungChiaCa': { ql: true, sheets: [LICH],     fn: (nv, p) => B.qlApDungChiaCa_(nv, p) },
 
   'ql.bangLuong':    { ql: true, sheets: LUONG, fn: (nv, p) => B.qlBangLuong_(nv, p) },
   'ql.chotLuong':    { ql: true, sheets: LUONG, fn: (nv, p) => B.qlChotLuong_(nv, p) },

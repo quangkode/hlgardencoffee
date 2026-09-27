@@ -487,6 +487,89 @@ ok('nhân viên không gọi được API nhập Excel',
 ok('file rác bị từ chối với thông báo rõ ràng',
    (await api(tkQL, 'ql.nhapKhoExcel', { fileBase64: 'khong-phai-file-excel' })).ok === false);
 
+/* ============ 15. Tự động chia ca ============ */
+nhom('15. Tự động chia ca');
+
+// Kích hoạt lại NV002 (đã cho nghỉ việc ở mục 12) để có người thứ hai đăng ký ca
+await must(tkQL, 'ql.luuNhanVien', { maNV: 'NV002', hoTen: 'Trần Thị B', chucVu: 'NhanVien',
+  luongTheoGio: 28000, phuCapCa: 0, trangThai: 'DangLam' });
+await must(tkQL, 'ql.resetPin', { maNV: 'NV002', pin: '1234' });
+let tkNV2 = (await must(null, 'login', { maNV: 'NV002', pin: '1234' })).token;
+tkNV2 = (await must(tkNV2, 'doiPin', { pinCu: '1234', pinMoi: '135790', pinMoiNhapLai: '135790' })).token;
+
+// Cấu hình số người cần mỗi ngày: CA1 cần 1, CA2 cần 2, CA3 không giới hạn
+const dsCaHienTai = (await must(tkQL, 'ql.docCaiDat')).dsCa;
+function luuLaiCa_(maCa, soNguoiCan) {
+  const c = dsCaHienTai.find(x => x.maCa === maCa);
+  return must(tkQL, 'ql.luuCa', { ...c, soNguoiCan });
+}
+await luuLaiCa_('CA1', 1);
+await luuLaiCa_('CA2', 2);
+await luuLaiCa_('CA3', 0);
+ok('lưu số người cần CA1 = 1', caiDat('soNguoiCanCa_CA1') === '1', caiDat('soNguoiCanCa_CA1'));
+ok('lưu số người cần CA2 = 2', caiDat('soNguoiCanCa_CA2') === '2', caiDat('soNguoiCanCa_CA2'));
+ok('lưu số người cần CA3 = 0 (không giới hạn)', caiDat('soNguoiCanCa_CA3') === '0', caiDat('soNguoiCanCa_CA3'));
+ok('ql.docCaiDat trả lại đúng số người cần đã lưu',
+   (await must(tkQL, 'ql.docCaiDat')).dsCa.find(x => x.maCa === 'CA2').soNguoiCan === 2);
+
+datGio('2026-09-10T01:00:00Z');   // hôm nay 10/9 (Thứ Năm)
+
+// NV002 đã được xếp sẵn 1 ca trong tuần 14–20/9 -> phải được ưu tiên thấp hơn khi tranh chỗ
+await must(tkQL, 'ql.xepCa', { items: [{ maNV: 'NV002', ngay: '2026-09-14', maCa: 'CA3' }] });
+
+// 2 người cùng báo ca CA1 ngày 15/9 (chỉ cần 1 người) -> phải chọn người đang ít ca hơn (NV001)
+await must(tkNV, 'ca.baoCa', { items: [{ ngay: '2026-09-15', maCa: 'CA1' }] });
+await must(tkNV2, 'ca.baoCa', { items: [{ ngay: '2026-09-15', maCa: 'CA1' }] });
+
+// Chỉ 1 người báo ca CA2 ngày 16/9 (cần 2 người) -> thiếu người nhưng vẫn được chọn
+await must(tkNV, 'ca.baoCa', { items: [{ ngay: '2026-09-16', maCa: 'CA2' }] });
+
+// 2 người cùng báo ca CA3 ngày 16/9 (không giới hạn) -> cả 2 đều được chọn
+await must(tkNV, 'ca.baoCa', { items: [{ ngay: '2026-09-16', maCa: 'CA3' }] });
+await must(tkNV2, 'ca.baoCa', { items: [{ ngay: '2026-09-16', maCa: 'CA3' }] });
+
+const goiY = await must(tkQL, 'ql.goiYChiaCa', { tuNgay: '2026-09-14', denNgay: '2026-09-16' });
+const nhomCA1 = goiY.danhSach.find(g => g.ngay === '2026-09-15' && g.maCa === 'CA1');
+const nhomCA2 = goiY.danhSach.find(g => g.ngay === '2026-09-16' && g.maCa === 'CA2');
+const nhomCA3 = goiY.danhSach.find(g => g.ngay === '2026-09-16' && g.maCa === 'CA3');
+
+ok('CA1 15/9: đúng 1 chỗ, 2 người đăng ký', nhomCA1.can === 1 && nhomCA1.soDangKy === 2, nhomCA1);
+ok('CA1 15/9: ưu tiên người đang ít ca hơn (NV001) được chọn',
+   nhomCA1.chon.length === 1 && nhomCA1.chon[0].maNV === 'NV001', nhomCA1);
+ok('CA1 15/9: NV002 (đã có 1 ca tuần này) không được chọn',
+   nhomCA1.khongChon.length === 1 && nhomCA1.khongChon[0].maNV === 'NV002', nhomCA1);
+
+ok('CA2 16/9: cần 2 người nhưng mới 1 đăng ký -> vẫn chọn, không loại ai',
+   nhomCA2.can === 2 && nhomCA2.soDangKy === 1 && nhomCA2.chon.length === 1 && nhomCA2.khongChon.length === 0, nhomCA2);
+ok('có cảnh báo thiếu người cho CA2 16/9',
+   goiY.canhBaoThieu.some(s => s.includes('2026-09-16') && s.includes('1/2')), goiY.canhBaoThieu);
+
+ok('CA3 16/9: không giới hạn -> cả 2 người đều được chọn',
+   nhomCA3.can === null && nhomCA3.chon.length === 2 && nhomCA3.khongChon.length === 0, nhomCA3);
+
+const idsChon = [...nhomCA1.chon, ...nhomCA2.chon, ...nhomCA3.chon].map(x => x.id);
+const idsTuChoi = [...nhomCA1.khongChon, ...nhomCA2.khongChon, ...nhomCA3.khongChon].map(x => x.id);
+await must(tkQL, 'ql.apDungChiaCa', { idsChon, idsTuChoi });
+
+const lichSau = docSheet('LichLamViec');
+const rowNV001CA1 = lichSau.find(x => x.maNV === 'NV001' && x.ngay === '2026-09-15' && x.maCa === 'CA1');
+const rowNV002CA1 = lichSau.find(x => x.maNV === 'NV002' && x.ngay === '2026-09-15' && x.maCa === 'CA1');
+ok('áp dụng: NV001 được duyệt ca CA1 15/9', rowNV001CA1.trangThai === 'DaDuyet', rowNV001CA1);
+ok('áp dụng: NV002 bị từ chối ca CA1 15/9', rowNV002CA1.trangThai === 'TuChoi', rowNV002CA1);
+ok('áp dụng: có ghi chú lý do từ chối', /không chọn|đủ người/.test(rowNV002CA1.ghiChuQL), rowNV002CA1.ghiChuQL);
+
+const rowNV001CA2 = lichSau.find(x => x.maNV === 'NV001' && x.ngay === '2026-09-16' && x.maCa === 'CA2');
+ok('áp dụng: NV001 vẫn được duyệt dù CA2 16/9 thiếu người', rowNV001CA2.trangThai === 'DaDuyet', rowNV001CA2);
+
+const lichCuoi = await must(tkQL, 'ql.lichCa', { tuNgay: '2026-09-14', denNgay: '2026-09-16' });
+ok('không còn ca nào chờ duyệt trong khoảng đã áp dụng',
+   lichCuoi.danhSach.filter(x => x.trangThai === 'ChoDuyet').length === 0, lichCuoi.danhSach);
+
+ok('áp dụng mà không chọn/từ chối gì thì báo lỗi',
+   (await api(tkQL, 'ql.apDungChiaCa', {})).ok === false);
+ok('nhân viên không gọi được API gợi ý chia ca',
+   (await api(tkNV, 'ql.goiYChiaCa', { tuNgay: '2026-09-14', denNgay: '2026-09-16' })).ok === false);
+
 console.log('\n───────────────');
 console.log(dat + ' đạt / ' + hong + ' lỗi');
 process.exit(hong ? 1 : 0);
