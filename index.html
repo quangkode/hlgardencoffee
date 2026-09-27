@@ -162,6 +162,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 table.tbl th{text-align:left;font-size:11px;color:var(--tx2);text-transform:uppercase;padding:6px 6px;border-bottom:1px solid var(--line);font-weight:700}
 table.tbl td{padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
 table.tbl tr:last-child td{border-bottom:0}
+table.tbl.kk th,table.tbl.kk td{text-align:center;border-left:1px solid var(--line)}
+table.tbl.kk th:first-child,table.tbl.kk td:first-child{text-align:left;border-left:0}
 .scrollx{overflow-x:auto;-webkit-overflow-scrolling:touch}
 
 /* ===== Đăng nhập ===== */
@@ -1147,14 +1149,7 @@ function theKiemKho(p){
       return '\u003cdiv class="card tight"\u003e' +
         '\u003cdiv class="spread"\u003e\u003cdiv\u003e\u003cb\u003e' + h(ngayVN(p.ngay)) + '\u003c/b\u003e · ' + h(p.maCa) + '\u003c/div\u003e' + badge + '\u003c/div\u003e' +
         '\u003cdiv class="xs muted"\u003e' + h(p.hoTen) + ' · ' + h(p.thoiGian) + '\u003c/div\u003e' +
-        '\u003cdiv class="scrollx mt"\u003e\u003ctable class="tbl"\u003e\u003ctr\u003e\u003cth\u003eHàng\u003c/th\u003e\u003cth class="right"\u003eTrước\u003c/th\u003e' +
-        '\u003cth class="right"\u003eNhập\u003c/th\u003e\u003cth class="right"\u003eThực tế\u003c/th\u003e\u003cth class="right"\u003eHao\u003c/th\u003e\u003c/tr\u003e' +
-        p.items.map(function(i){
-          return '<tr><td>' + h(i.tenHang) + '</td><td class="right">' + i.tonTruoc + '</td>' +
-                 '<td class="right">' + i.nhapThem + '</td>' +
-                 '<td class="right"' + (i.duoiDinhMuc ? ' style="color:var(--err);font-weight:700"' : '') + '>' + i.thucTe + '</td>' +
-                 '<td class="right">' + i.haoHut + '</td></tr>';
-        }).join('') + '</table></div></div>';
+        '<div class="scrollx mt">' + bangTonKho(p.items, [{ t:'Hàng', f:function(i){ return h(i.tenHang); } }]) + '</div></div>';
 }
 
 /* ================= GIAO CA ================= */
@@ -1714,21 +1709,17 @@ function moChiTietKho(x){
     '<div class="dp-sub">' + h(x.donVi) + (x.tonDinhMuc ? ' \u00b7 \u0110M ' + x.tonDinhMuc : '') + '</div>' +
     '<div class="grid2 mb">' +
       '<div class="stat' + (x.duoiDinhMuc ? ' err' : '') + '"><div class="v">' + x.tonHienTai + '</div><div class="l">Tồn hiện tại</div></div>' +
-      '<div class="stat err"><div class="v">' + x.tongHao + '</div><div class="l">Hao trong kỳ</div></div>' +
+      '<div class="stat"><div class="v">' + x.soLanKiem + '</div><div class="l">Lần kiểm trong kỳ</div></div>' +
     '</div>' +
-    '<div class="stat err mb"><div class="v" style="font-size:16px">' + tien(x.tienHao) + '</div><div class="l">Giá trị hao hụt</div></div>' +
     '<div class="grid2 mb">' +
       '<div class="stat ok"><div class="v">' + (x.tongNhap || 0) + '</div><div class="l">Nhập (đã duyệt)</div></div>' +
       '<div class="stat"><div class="v">' + (x.tongXuat || 0) + '</div><div class="l">Xuất (đã duyệt)</div></div>' +
     '</div>' +
     '<div class="sec-title">Lịch sử kiểm trong kỳ (' + lichSu.length + ')</div>' +
-    (lichSu.length ? '<div class="card tight"><div class="scrollx"><table class="tbl">' +
-      '<tr><th>Ngày</th><th>Ca</th><th class="right">Tr\u01b0\u1edbc</th><th class="right">Nh\u1eadp</th><th class="right">Th\u1ef1c</th><th class="right">Hao</th></tr>' +
-      lichSu.map(function(r){
-        return '<tr><td class="nowrap">' + h(ngayNgan(r.ngay)) + '</td><td>' + h(r.maCa) + '</td>' +
-          '<td class="right">' + r.tonTruoc + '</td><td class="right">' + r.nhapThem + '</td>' +
-          '<td class="right">' + r.thucTe + '</td><td class="right">' + r.haoHut + '</td></tr>';
-      }).join('') + '</table></div></div>' : '<div class="small muted">Không có dữ liệu.</div>');
+    (lichSu.length ? '<div class="card tight"><div class="scrollx">' + bangTonKho(lichSu, [
+      { t:'Ngày', f:function(r){ return h(ngayNgan(r.ngay)); } },
+      { t:'Ca', f:function(r){ return h(r.maCa); } }
+    ]) + '</div></div>' : '<div class="small muted">Không có dữ liệu.</div>');
 
   o.classList.add('show');
   p.classList.add('show');
@@ -1736,7 +1727,18 @@ function moChiTietKho(x){
 
 var CHART_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#06b6d4','#84cc16'];
 
-var _locPK = { tt: '', nv: '', ca: '', q: '', hao: false };
+function bangTonKho(rows, cotDau){
+  return '<table class="tbl kk"><tr>' +
+    cotDau.map(function(c){ return '<th>' + c.t + '</th>'; }).join('') +
+    '<th>Trước</th><th>Nhập</th><th>Tồn kho</th></tr>' +
+    rows.map(function(r){
+      return '<tr>' + cotDau.map(function(c){ return '<td>' + c.f(r) + '</td>'; }).join('') +
+        '<td>' + r.tonTruoc + '</td><td>' + r.nhapThem + '</td>' +
+        '<td' + (r.duoiDinhMuc ? ' style="color:var(--err);font-weight:700"' : '') + '>' + r.thucTe + '</td></tr>';
+    }).join('') + '</table>';
+}
+
+var _locPK = { tt: '', nv: '', ca: '', q: '' };
 
 function boDau(x){
   return String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -1752,7 +1754,6 @@ function veDsPhieuKiem(){
     if (L.nv && p.hoTen !== L.nv) return false;
     if (L.ca && p.maCa !== L.ca) return false;
     if (q && !p.items.some(function(i){ return boDau(i.tenHang).indexOf(q) >= 0; })) return false;
-    if (L.hao && !p.items.some(function(i){ return Number(i.haoHut) > 0; })) return false;
     return true;
   });
   $('#pkDem').textContent = 'Hiện ' + ds.length + ' / ' + tatCa.length + ' phiếu trong khoảng ngày đã chọn';
@@ -1765,14 +1766,8 @@ function veDsPhieuKiem(){
       return '<div class="card tight">' +
         '<div class="spread"><div><b>' + h(ngayVN(p.ngay)) + '</b> \u00b7 ' + h(p.maCa) + ' \u00b7 ' + h(p.hoTen) + '</div>' +
         badge + '</div>' +
-        '<div class="scrollx mt"><table class="tbl" style="table-layout:fixed;width:100%">' +
-        '<tr><th style="width:auto;text-align:left">H\u00e0ng</th><th class="right" style="width:60px">Tr\u01b0\u1edbc</th><th class="right" style="width:50px">Nh\u1eadp</th><th class="right" style="width:65px">T\u1ed3n kho</th><th class="right" style="width:45px">Hao</th></tr>' +
-        p.items.filter(function(i){ return !q || boDau(i.tenHang).indexOf(q) >= 0; }).map(function(i){
-          return '<tr><td>' + h(i.tenHang) + '</td><td class="right">' + i.tonTruoc + '</td>' +
-            '<td class="right">' + i.nhapThem + '</td>' +
-            '<td class="right"' + (i.duoiDinhMuc ? ' style="color:var(--err);font-weight:700"' : '') + '>' + i.thucTe + '</td>' +
-            '<td class="right">' + i.haoHut + '</td></tr>';
-        }).join('') + '</table></div>' +
+        '<div class="scrollx mt">' + bangTonKho(p.items.filter(function(i){ return !q || boDau(i.tenHang).indexOf(q) >= 0; }),
+          [{ t:'Hàng', f:function(i){ return h(i.tenHang); } }]) + '</div>' +
         (ttDuyet === 'ChoDuyet' ? '<div class="pc-actions mt">' +
           '<button class="btn ok grow sm" onclick="duyetKiemKho(\'' + p.id + '\',true)">\u2713 Duyệt</button>' +
           '<button class="btn err sm" onclick="duyetKiemKho(\'' + p.id + '\',false)">\u2717 Từ chối</button></div>' : '') +
@@ -1788,53 +1783,30 @@ function tabKhoQL(n){
   var d = S.cache.kho, b = $('#kBody');
 
   if (n === 1){
-    var tongTien = d.thongKe.reduce(function(s, x){ return s + x.tienHao; }, 0);
-    var maxTien = d.thongKe.length ? d.thongKe[0].tienHao : 1;
-    var top5 = d.thongKe.slice(0, 7);
-
-    // Donut chart data
-    var nhomData = d.nhomChart || [];
-    var tongNhom = nhomData.reduce(function(s, x){ return s + x.tien; }, 0) || 1;
-    var gradParts = [], cumPct = 0;
-    nhomData.forEach(function(x, i){
-      var pct = (x.tien / tongNhom) * 100;
-      var c = CHART_COLORS[i % CHART_COLORS.length];
-      gradParts.push(c + ' ' + cumPct.toFixed(1) + '% ' + (cumPct + pct).toFixed(1) + '%');
-      cumPct += pct;
-    });
-    var donutGrad = gradParts.length ? 'conic-gradient(' + gradParts.join(',') + ')' : 'conic-gradient(var(--line) 0% 100%)';
-
-    // Pending count
     var soChoDuyet = (d.phieuChoDuyet || []).length;
+    var soChoNX = (d.phieuNXChoDuyet || []).length;
+    var dsTon = d.thongKe.slice().sort(function(x, y){
+      return (y.duoiDinhMuc ? 1 : 0) - (x.duoiDinhMuc ? 1 : 0) || String(x.tenHang).localeCompare(String(y.tenHang), 'vi');
+    });
+    S.cache.dsTonKho = dsTon;
 
     b.innerHTML =
-      // KPI Cards
       '<div class="kpi-grid">' +
-        '<div class="kpi-card c4"><div class="kpi-ic">&#128176;</div><div class="kpi-v anim-v" style="color:var(--err)">' + tien(tongTien) + '</div><div class="kpi-l">Hao hụt</div></div>' +
         '<div class="kpi-card c2"><div class="kpi-ic">&#128230;</div><div class="kpi-v anim-v">' + (d.soMHKiem || 0) + '</div><div class="kpi-l">Mặt hàng</div></div>' +
         '<div class="kpi-card c3"><div class="kpi-ic">&#9888;</div><div class="kpi-v anim-v" style="color:var(--warn)">' + (d.soMHDuoiDM || 0) + '</div><div class="kpi-l">Sắp hết</div></div>' +
+        '<div class="kpi-card c4"><div class="kpi-ic">&#128203;</div><div class="kpi-v anim-v">' + (soChoDuyet + soChoNX) + '</div><div class="kpi-l">Chờ duyệt</div></div>' +
       '</div>' +
 
-      // Bar chart - Top hao hut
-      (top5.length ? '<div class="card"><div class="spread" style="margin-bottom:8px"><b style="font-size:13px">Top hao hụt</b><span class="xs muted">Bấm \u0111ể xem chi tiết</span></div>' +
-        '<div class="bar-chart">' + top5.map(function(x, i){
-          var pct = maxTien > 0 ? Math.max(2, (x.tienHao / maxTien) * 100) : 2;
-          var c = CHART_COLORS[i % CHART_COLORS.length];
-          return '<div class="bar-row" onclick="moChiTietKho(' + JSON.stringify(x).replace(/"/g,'&quot;') + ')">' +
-            '<div class="bar-name">' + h(x.tenHang) + '</div>' +
-            '<div class="bar-track"><div class="bar-fill" style="width:' + pct.toFixed(0) + '%;background:' + c + '"></div></div>' +
-            '<div class="bar-val">' + tien(x.tienHao) + '</div></div>';
-        }).join('') + '</div></div>' : '') +
-
-      // Donut chart - Theo nhom
-      (nhomData.length ? '<div class="card"><b style="font-size:13px">Hao hụt theo nhóm</b>' +
-        '<div class="donut-wrap">' +
-          '<div class="donut" style="background:' + donutGrad + '"><div class="donut-hole"><div class="dh-v">' + nhomData.length + '</div><div class="dh-l">nhóm</div></div></div>' +
-          '<div class="donut-legend">' + nhomData.map(function(x, i){
-            var pct = ((x.tien / tongNhom) * 100).toFixed(0);
-            return '<div class="dl-row"><div class="dl-dot" style="background:' + CHART_COLORS[i % CHART_COLORS.length] + '"></div>' +
-              '<span>' + h(x.ten) + '</span><span class="dl-pct">' + tien(x.tien) + ' (' + pct + '%)</span></div>';
-          }).join('') + '</div></div></div>' : '') +
+      (dsTon.length ? '<div class="card"><div class="spread" style="margin-bottom:8px"><b style="font-size:13px">Tồn kho hiện tại</b>' +
+        '<span class="xs muted">Bấm vào món để xem chi tiết</span></div>' +
+        '<div class="scrollx"><table class="tbl kk"><tr><th>Hàng</th><th>Tồn</th><th>Nhập</th><th>Xuất</th></tr>' +
+        dsTon.map(function(x, i){
+          return '<tr style="cursor:pointer" onclick="moChiTietKho(S.cache.dsTonKho[' + i + '])">' +
+            '<td>' + h(x.tenHang) + ' <span class="xs muted">' + h(x.donVi) + '</span></td>' +
+            '<td' + (x.duoiDinhMuc ? ' style="color:var(--err);font-weight:700"' : '') + '>' + x.tonHienTai + '</td>' +
+            '<td>' + (x.tongNhap || 0) + '</td><td>' + (x.tongXuat || 0) + '</td></tr>';
+        }).join('') + '</table></div>' +
+        '<div class="xs muted mt">Nhập/Xuất: số đã duyệt trong khoảng ngày đang xem.</div></div>' : '') +
 
       // Pending approval section
       (soChoDuyet > 0 ? '<div class="pending-section"><div class="sec-title">Phiếu chờ duyệt <span class="chip warn">' + soChoDuyet + '</span></div>' +
@@ -1876,8 +1848,6 @@ function tabKhoQL(n){
             dsCaPK.sort().map(function(x){ return '<option' + (L.ca === x ? ' selected' : '') + '>' + h(x) + '</option>'; }).join('') + '</select>' +
         '</div>' +
         '<input class="inp mt" id="pkQ" placeholder="Tìm mặt hàng…" value="' + h(L.q) + '">' +
-        '<label class="small mt" style="display:flex;align-items:center;gap:6px">' +
-          '<input type="checkbox" id="pkHao"' + (L.hao ? ' checked' : '') + '> Chỉ phiếu có hao hụt</label>' +
       '</div>' +
       '<div class="xs muted mb" id="pkDem"></div>' +
       '<div id="pkList"></div>';
@@ -1888,7 +1858,6 @@ function tabKhoQL(n){
     $('#pkNV').onchange = function(){ _locPK.nv = this.value; veDsPhieuKiem(); };
     $('#pkCa').onchange = function(){ _locPK.ca = this.value; veDsPhieuKiem(); };
     $('#pkQ').oninput = function(){ _locPK.q = this.value; veDsPhieuKiem(); };
-    $('#pkHao').onchange = function(){ _locPK.hao = this.checked; veDsPhieuKiem(); };
     veDsPhieuKiem();
 
   } else if (n === 4){
