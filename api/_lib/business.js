@@ -938,10 +938,6 @@ export function qlNhapKhoExcel_(nv, p) {
   const ngayList = dsNgayDoc.filter(x => !ngayDaNhap.has(x.ngay));
   const tuNgay = dsNgayDoc[0].ngay, denNgay = dsNgayDoc[dsNgayDoc.length - 1].ngay;
 
-  if (!ngayList.length && p.xacNhan) {
-    throw new Error('Cả ' + dsNgayDoc.length + ' ngày trong file đã được nhập từ Excel trước đó rồi ' +
-                     '(xem lại ở tab "Phiếu kiểm"). Không có gì để nhập thêm.');
-  }
 
   const dm = {};            // maHang -> { tenHang, donVi, tonDinhMuc }
   const tenSangMa = {};     // tên đã chuẩn hoá -> maHang
@@ -953,7 +949,24 @@ export function qlNhapKhoExcel_(nv, p) {
     tenSangMa[chuanHoaTenHang_(r.tenHang)] = ma;
   });
 
+  // Mặt hàng có trong file mà danh mục chưa có (kể cả ở những ngày đã nhập
+  // trước đó) thì bổ sung lại -> tải lại file cũ sẽ khôi phục món bị xoá nhầm.
   const hangMoi = [];
+  dsNgayDoc.forEach(({ items }) => items.forEach(it => {
+    const ten = String(it.tenHang || '').trim();
+    if (!ten) return;
+    const key = chuanHoaTenHang_(ten);
+    if (tenSangMa[key]) return;
+    const ma = taoMaHangTuTen_(ten, maDaDung);
+    tenSangMa[key] = ma;
+    dm[ma] = { tenHang: ten, donVi: it.donVi, tonDinhMuc: 0 };
+    hangMoi.push({
+      maHang: ma, tenHang: ten, donVi: it.donVi || '',
+      nhomHang: 'Nhập từ Excel', tonDinhMuc: 0, giaVon: it.donGia || 0,
+      trangThai: 'HoatDong'
+    });
+  }));
+
   const dongKho = [];
   let soCanhBao = 0;
 
@@ -962,18 +975,7 @@ export function qlNhapKhoExcel_(nv, p) {
     items.forEach(it => {
       const ten = String(it.tenHang || '').trim();
       if (!ten) return;
-      const key = chuanHoaTenHang_(ten);
-      let ma = tenSangMa[key];
-      if (!ma) {
-        ma = taoMaHangTuTen_(ten, maDaDung);
-        tenSangMa[key] = ma;
-        dm[ma] = { tenHang: ten, donVi: it.donVi, tonDinhMuc: 0 };
-        hangMoi.push({
-          maHang: ma, tenHang: ten, donVi: it.donVi || '',
-          nhomHang: 'Nhập từ Excel', tonDinhMuc: 0, giaVon: it.donGia || 0,
-          trangThai: 'HoatDong'
-        });
-      }
+      const ma = tenSangMa[chuanHoaTenHang_(ten)];
       const h = dm[ma];
       const hao = Math.round((it.tonTruoc + it.nhapThem - it.thucTe) * 1000) / 1000;
       const duoi = h.tonDinhMuc > 0 && it.thucTe < h.tonDinhMuc;
@@ -997,6 +999,11 @@ export function qlNhapKhoExcel_(nv, p) {
     throw new Error('File không có dòng mặt hàng nào có "Tồn cuối ngày" để nhập.');
   }
 
+  if (p.xacNhan && !dongKho.length && !hangMoi.length) {
+    throw new Error('Cả ' + dsNgayDoc.length + ' ngày trong file đã được nhập từ Excel trước đó rồi ' +
+                     '(xem lại ở tab "Phiếu kiểm"). Không có gì để nhập thêm.');
+  }
+
   if (!p.xacNhan) {
     return {
       xemTruoc: true,
@@ -1011,11 +1018,18 @@ export function qlNhapKhoExcel_(nv, p) {
 
   withLock_(() => {
     if (hangMoi.length) appendMany_(SHEETS.HANG, hangMoi);
-    appendMany_(SHEETS.KIEMKHO, dongKho);
+    if (dongKho.length) appendMany_(SHEETS.KIEMKHO, dongKho);
   });
   ghiNhatKy_(nv, 'NhapKhoExcel',
     tuNgay + ' -> ' + denNgay + ' -- ' + dongKho.length + ' dong, ' + hangMoi.length + ' mat hang moi');
 
+  if (!dongKho.length) {
+    return {
+      thongBao: 'Không có ngày mới để nhập. Đã bổ sung ' + hangMoi.length + ' mặt hàng còn thiếu vào danh mục: ' +
+                hangMoi.map(x => x.tenHang).join(', ') + '.',
+      soDong: 0, soHangMoi: hangMoi.length, soCanhBao: 0
+    };
+  }
   return {
     thongBao: 'Đã nhập kho ' + ngayList.length + ' ngày (' + tuNgay + ' → ' + denNgay + '), ' +
               dongKho.length + ' dòng' +

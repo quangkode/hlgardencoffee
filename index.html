@@ -219,6 +219,7 @@ table.tbl.kk th:first-child,table.tbl.kk td:first-child{text-align:left;border-l
 .nk-o.on{border-color:var(--brand);background:var(--card2)}
 .nk-o.on .nk-tick{background:var(--brand);border-color:var(--brand);color:#fff}
 .nk-day{position:sticky;bottom:0;padding:10px 0 2px;background:var(--bg)}
+.nk-tim{position:sticky;top:-16px;z-index:2;background:var(--bg);padding:6px 0 8px;margin-top:-6px}
 
 /* ===== Dashboard KPI & Charts ===== */
 .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
@@ -1061,7 +1062,7 @@ function moFormNhap(d){
 
   var body =
     '<div id="nkB1">' +
-      '<input class="inp" id="nkTim" placeholder="Tìm mặt hàng…">' +
+      '<div class="nk-tim"><input class="inp" id="nkTim" placeholder="Tìm mặt hàng…"></div>' +
       d.nhomHang.map(function(g){
         return '<div class="sec-title nk-nhom">' + h(g.ten) + '</div><div class="nk-luoi">' +
           g.items.map(function(it){
@@ -1088,6 +1089,9 @@ function moFormNhap(d){
     title: '📥 Nhập kho',
     body: body,
     onMount: function(){
+      // Giữ nguyên chiều cao popup khi lọc món, để ô tìm không bị trôi xuống
+      $('#_sheet').style.height = window.innerWidth >= 640 ? '86vh' : '92vh';
+
       var capNhatNut = function(){
         var n = chon.length, nut = $('#nkTiep');
         nut.disabled = !n;
@@ -2122,10 +2126,11 @@ function moNhapExcelKho(){
               '<div class="spread small"><span>Mặt hàng mới sẽ tạo</span><b>' + r.soHangMoi + '</b></div>' +
               (r.soHangMoi ? '<div class="xs muted mt">' + h(r.tenHangMoi.join(', ')) + '</div>' : '') +
             '</div>' + canhBao +
-            (r.soDong
-              ? '<button class="btn block mt" id="nkOk">Xác nhận nhập vào kho</button>'
-              : '<div class="small muted mt">Không có ngày nào mới để nhập.</div>');
-          if (r.soDong) $('#nkOk').onclick = function(){
+            (r.soDong || r.soHangMoi
+              ? '<button class="btn block mt" id="nkOk">' +
+                  (r.soDong ? 'Xác nhận nhập vào kho' : 'Bổ sung ' + r.soHangMoi + ' mặt hàng còn thiếu vào danh mục') + '</button>'
+              : '<div class="small muted mt">Không có ngày nào mới để nhập, danh mục cũng đã đủ món.</div>');
+          if (r.soDong || r.soHangMoi) $('#nkOk').onclick = function(){
             $('#nkOk').setAttribute('disabled', 'disabled');
             api('ql.nhapKhoExcel', { fileBase64: b64, xacNhan: true }).then(function(r2){
               dongSheet(); toast(r2.thongBao, 'ok', 8000); lamMoi();

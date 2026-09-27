@@ -710,6 +710,19 @@ const pH5 = await must(tkNV, 'kho.nhapXuat', { loai: 'Nhap', items: [{ maHang: '
 ok('món không phải hoa quả không bắt buộc đơn giá (lấy giá vốn)',
    Number(docSheet('NhapXuatKho').find(x => x.id === pH5.maPhieu).donGia) === 150000);
 
+/* ============ 19. Tải lại file Excel khôi phục món bị xoá ============ */
+nhom('19. Tải lại file Excel bổ sung món còn thiếu');
+const maMatcha = docSheet('DanhMucHang').find(x => x.tenHang === 'Bột Matcha Test').maHang;
+await must(tkQL, 'ql.xoaHang', { maHang: maMatcha });
+const soKK19 = docSheet('KiemKho').length;
+const xt19 = await must(tkQL, 'ql.nhapKhoExcel', { fileBase64 });
+ok('xem trước: không có ngày mới nhưng báo 1 món còn thiếu', xt19.soDong === 0 && xt19.soHangMoi === 1, xt19);
+const r19 = await must(tkQL, 'ql.nhapKhoExcel', { fileBase64, xacNhan: true });
+ok('xác nhận: món bị xoá được tạo lại', docSheet('DanhMucHang').some(x => x.tenHang === 'Bột Matcha Test'), r19.thongBao);
+ok('không ghi thêm dòng kiểm kho nào', docSheet('KiemKho').length === soKK19);
+ok('tải lại lần nữa khi đã đủ món thì báo không có gì để nhập',
+   (await api(tkQL, 'ql.nhapKhoExcel', { fileBase64, xacNhan: true })).ok === false);
+
 console.log('\n───────────────');
 console.log(dat + ' đạt / ' + hong + ' lỗi');
 process.exit(hong ? 1 : 0);
