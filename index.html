@@ -1009,6 +1009,32 @@ function optCaKho(d){
 
 function laHoaQua(nhom){ return boDau(nhom) === 'hoa qua'; }
 
+/* Xác nhận bằng cách bấm nút 2 lần, KHÔNG mở hộp thoại xacNhan(): hộp thoại đó dùng
+   chung khung popup nên sẽ xoá mất form đang điền (trước đây làm phiếu không gửi được). */
+function bamLanHai(nut, chu){
+  if (nut.getAttribute('data-cho') === '1') return true;
+  nut.setAttribute('data-cho', '1');
+  nut.setAttribute('data-goc', nut.textContent);
+  nut.textContent = chu;
+  nut.classList.add('ok');
+  setTimeout(function(){
+    if (nut.getAttribute('data-cho') !== '1' || nut.disabled) return;
+    nut.removeAttribute('data-cho'); nut.textContent = nut.getAttribute('data-goc'); nut.classList.remove('ok');
+  }, 6000);
+  return false;
+}
+
+function guiPhieuKho(nut, action, payload){
+  nut.disabled = true;
+  nut.textContent = 'Đang gửi…';
+  api(action, payload).then(function(r){ dongSheet(); toast(r.thongBao, 'ok', 5000); lamMoi(); })
+    .catch(function(e){
+      toast(e.message, 'err', 8000);
+      nut.disabled = false; nut.removeAttribute('data-cho');
+      nut.textContent = nut.getAttribute('data-goc'); nut.classList.remove('ok');
+    });
+}
+
 /* Kiểm kho: nhân viên chỉ đếm số thực tế. Không làm đổi tồn, chỉ để quản lý duyệt & nắm tình trạng. */
 function moFormDem(d){
   var body =
@@ -1040,12 +1066,9 @@ function moFormDem(d){
           if (v !== '') items.push({ maHang: e.getAttribute('data-m'), soDem: v });
         });
         if (!items.length){ toast('Chưa nhập số đếm cho mặt hàng nào.', 'warn'); return; }
-        xacNhan('Gửi bản kiểm kho ' + items.length + ' mặt hàng cho quản lý duyệt?', { ok:'Gửi' }).then(function(y){
-          if (!y) return;
-          api('kho.dem', { maCa: $('#kkCa').value, items: items, ghiChu: $('#kkGhiChu').value })
-            .then(function(r){ dongSheet(); toast(r.thongBao, 'ok'); lamMoi(); })
-            .catch(function(e){ toast(e.message, 'err', 8000); });
-        });
+        var nut = this;
+        if (!bamLanHai(nut, 'Bấm lần nữa để gửi ' + items.length + ' mặt hàng')) return;
+        guiPhieuKho(nut, 'kho.dem', { maCa: $('#kkCa').value, items: items, ghiChu: $('#kkGhiChu').value });
       };
     }
   });
@@ -1159,13 +1182,10 @@ function moFormNhap(d){
         });
         if (thieuSL.length){ toast('Chưa điền số lượng: ' + thieuSL.join(', '), 'warn', 6000); return; }
         if (thieuGia.length){ toast('Hoa quả phải điền đơn giá: ' + thieuGia.join(', '), 'warn', 6000); return; }
-        var ngay = $('#nkNgay').value;
-        xacNhan('Gửi phiếu nhập kho ngày ' + ngayVN(ngay) + ' gồm ' + items.length + ' mặt hàng?', { ok:'Gửi' }).then(function(y){
-          if (!y) return;
-          api('kho.nhapXuat', { loai: 'Nhap', ngay: ngay, maCa: $('#kkCa').value, items: items, ghiChu: $('#kkGhiChu').value })
-            .then(function(r){ dongSheet(); toast(r.thongBao, 'ok'); lamMoi(); })
-            .catch(function(e){ toast(e.message, 'err', 8000); });
-        });
+        var ngay = $('#nkNgay').value, nut = this;
+        if (!ngay){ toast('Chưa chọn ngày nhập kho.', 'warn'); return; }
+        if (!bamLanHai(nut, 'Bấm lần nữa để gửi: ngày ' + ngayVN(ngay) + ', ' + items.length + ' món')) return;
+        guiPhieuKho(nut, 'kho.nhapXuat', { loai: 'Nhap', ngay: ngay, maCa: $('#kkCa').value, items: items, ghiChu: $('#kkGhiChu').value });
       };
     }
   });

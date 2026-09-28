@@ -446,13 +446,26 @@ const lam3_ = n => Math.round(n * 1000) / 1000;
  * Chỉ phiếu đã được quản lý duyệt mới làm thay đổi tồn; phiếu nhập/xuất đang
  * chờ duyệt được cộng riêng vào choNhap/choXuat để hiển thị cho biết.
  */
-export function tonGanNhat_() {
+/**
+ * Thời điểm một phiếu nhập/xuất được tính vào kho: phiếu gửi đúng trong ngày thì
+ * theo giờ gửi; phiếu ghi lùi về một ngày trước đó thì tính như xảy ra CUỐI ngày
+ * đã chọn -> cộng vào tồn từ ngày đó trở đi, nhưng nếu sau ngày đó đã có lần kiểm
+ * kho (số đếm thực tế) thì coi như đã nằm trong số đếm, không cộng lần 2.
+ */
+function mocNX_(r) {
+  const ngay = dstr_(r.ngay), tg = String(r.thoiGian || '');
+  return ngay && ngay !== tg.slice(0, 10) ? ngay + ' 23:59:59' : tg;
+}
+
+/** denLuc (tuỳ chọn, 'yyyy-MM-dd HH:mm:ss'): tính tồn tại ngay TRƯỚC thời điểm đó. */
+export function tonGanNhat_(denLuc) {
   const map = {};
   readAll_(SHEETS.KIEMKHO).forEach(r => {
     const tt = String(r.trangThaiDuyet || '').trim();
     if (tt && tt !== 'DaDuyet') return;
     const ma = String(r.maHang).trim();
     const stamp = String(r.thoiGian || '');
+    if (denLuc && stamp >= denLuc) return;
     if (!map[ma] || stamp >= map[ma].moc) {
       map[ma] = { stamp, moc: stamp, thucTe: num_(r.thucTe), choNhap: 0, choXuat: 0 };
     }
@@ -469,7 +482,8 @@ export function tonGanNhat_() {
       return;
     }
     if (tt !== 'DaDuyet') return;
-    const stamp = String(r.thoiGian || '');
+    const stamp = mocNX_(r);
+    if (denLuc && stamp >= denLuc) return;
     if (m.moc && stamp < m.moc) return;       // đã nằm trong số đếm của lần kiểm sau đó
     m.thucTe = lam3_(m.thucTe + (xuat ? -sl : sl));
     if (stamp > m.stamp) m.stamp = stamp;
@@ -705,6 +719,7 @@ export function khoNhapXuat_(nv, p) {
   if (ngay > today_()) throw new Error('Không chọn được ngày trong tương lai.');
   const maCa = String(p.maCa || caGoiYHienTai_(nv)).trim().toUpperCase();
 
+  const tonNgay = tonGanNhat_(mocNX_({ ngay, thoiGian: stamp }));
   const rows = [], thieu = [], thieuGia = [];
   items.forEach(it => {
     const ma = String(it.maHang || '').trim();
@@ -723,12 +738,13 @@ export function khoNhapXuat_(nv, p) {
     const giaNhap = num_(it.donGia);
     if (loai === 'Nhap' && laHoaQua_(h.nhomHang) && !(giaNhap > 0)) { thieuGia.push(h.tenHang); return; }
     const donGia = giaNhap > 0 ? giaNhap : h.giaVon;
+    const truocNgay = loai === 'Nhap' ? (tonNgay[ma] ? tonNgay[ma].thucTe : 0) : t.thucTe;
     rows.push({
       id, thoiGian: stamp, ngay, maCa, loai,
       maNV: nv.maNV, hoTen: nv.hoTen,
       maHang: ma, tenHang: h.tenHang, donVi: h.donVi,
       soLuong: sl, donGia, thanhTien: Math.round(sl * donGia),
-      tonTruoc: t.thucTe, tonSau: lam3_(t.thucTe + (loai === 'Nhap' ? sl : -sl)),
+      tonTruoc: truocNgay, tonSau: lam3_(truocNgay + (loai === 'Nhap' ? sl : -sl)),
       ghiChu: String(p.ghiChu || ''),
       trangThaiDuyet: 'ChoDuyet', nguoiDuyet: '', thoiGianDuyet: ''
     });
@@ -767,7 +783,7 @@ export function qlDuyetNhapXuat_(nv, p) {
       return { thongBao: 'Đã từ chối phiếu.' };
     }
 
-    const ton = tonGanNhat_();
+    const ton = tonGanNhat_(mocNX_(rows[0]));   // tồn ngay trước ngày của phiếu
     const tinh = {}, thieu = [], capNhat = [];
     rows.forEach(r => {
       const ma = String(r.maHang).trim();

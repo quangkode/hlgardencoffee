@@ -741,6 +741,29 @@ ok('khôi phục: món quay lại màn nhập kho với đúng mã cũ', !!h5moi
 ok('tồn kho giữ nguyên như trước khi xoá', h5moi && h5moi.tonTruoc === tonH005TruocXoa, [h5moi && h5moi.tonTruoc, tonH005TruocXoa]);
 ok('lần 2 báo danh mục đã đủ', (await must(tkQL, 'ql.khoiPhucHang', {})).ds.length === 0);
 
+/* ============ 21. Phiếu nhập được tính vào đúng ngày đã chọn ============ */
+nhom('21. Duyệt phiếu nhập tính vào đúng ngày nhập');
+datGio('2026-09-28T02:00:00Z');
+const ton21 = (await hangH005()).tonTruoc;                  // lần kiểm gần nhất của H005 là ngày 21/9
+
+// Nhập ghi lùi về 25/9 (sau lần kiểm 21/9) -> cộng vào tồn
+const p25 = await must(tkNV, 'kho.nhapXuat', { loai: 'Nhap', ngay: '2026-09-25', items: [{ maHang: 'H005', soLuong: 5 }] });
+await must(tkQL, 'ql.duyetNhapXuat', { id: p25.maPhieu, duyet: true });
+const d25 = docSheet('NhapXuatKho').find(x => x.id === p25.maPhieu);
+ok('nhập ngày 25/9 (sau lần kiểm 21/9) được cộng vào tồn', (await hangH005()).tonTruoc === ton21 + 5, [(await hangH005()).tonTruoc, ton21]);
+ok('sheet ghi ngày 25/9, tồn trước/sau tính theo ngày đó', d25.ngay === '2026-09-25' &&
+   Number(d25.tonTruoc) === ton21 && Number(d25.tonSau) === ton21 + 5, d25);
+
+// Nhập ghi lùi về 20/9 (TRƯỚC lần kiểm 21/9) -> đã nằm trong số đếm 21/9, không cộng lần 2
+const p20 = await must(tkNV, 'kho.nhapXuat', { loai: 'Nhap', ngay: '2026-09-20', items: [{ maHang: 'H005', soLuong: 3 }] });
+await must(tkQL, 'ql.duyetNhapXuat', { id: p20.maPhieu, duyet: true });
+const d20 = docSheet('NhapXuatKho').find(x => x.id === p20.maPhieu);
+ok('nhập ngày 20/9 (trước lần kiểm 21/9) không cộng trùng vào tồn hiện tại', (await hangH005()).tonTruoc === ton21 + 5);
+ok('tồn trước/sau của phiếu 20/9 là tồn tại ngày 20/9 (0 -> 3)', Number(d20.tonTruoc) === 0 && Number(d20.tonSau) === 3, d20);
+
+const kho21 = await must(tkQL, 'ql.kho', { tuNgay: '2026-09-25', denNgay: '2026-09-25' });
+ok('báo cáo khoảng 25/9 chỉ tính phiếu nhập ngày 25/9', kho21.phieuNX.length === 1 && kho21.phieuNX[0].id === p25.maPhieu, kho21.phieuNX.map(p => p.ngay));
+
 console.log('\n───────────────');
 console.log(dat + ' đạt / ' + hong + ' lỗi');
 process.exit(hong ? 1 : 0);
