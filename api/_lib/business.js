@@ -738,7 +738,7 @@ export function khoNhapXuat_(nv, p) {
     const giaNhap = num_(it.donGia);
     if (loai === 'Nhap' && laHoaQua_(h.nhomHang) && !(giaNhap > 0)) { thieuGia.push(h.tenHang); return; }
     const donGia = giaNhap > 0 ? giaNhap : h.giaVon;
-    const truocNgay = loai === 'Nhap' ? (tonNgay[ma] ? tonNgay[ma].thucTe : 0) : t.thucTe;
+    const truocNgay = tonNgay[ma] ? tonNgay[ma].thucTe : 0;   // tồn tại ngày đã chọn
     rows.push({
       id, thoiGian: stamp, ngay, maCa, loai,
       maNV: nv.maNV, hoTen: nv.hoTen,
