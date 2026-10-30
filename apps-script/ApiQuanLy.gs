@@ -509,7 +509,9 @@ function qlKho_(nv, p) {
       theoHang[ma] = {
         maHang: ma, tenHang: String(r.tenHang || ''), donVi: String(r.donVi || ''),
         tongHao: 0, soLanKiem: 0, tonHienTai: ton[ma] ? ton[ma].thucTe : 0,
-        tonDinhMuc: dm[ma] ? dm[ma].tonDinhMuc : 0, giaVon: dm[ma] ? dm[ma].giaVon : 0
+        nhomHang: dm[ma] ? dm[ma].nhomHang || 'Khác' : 'Khác',
+        tonDinhMuc: dm[ma] ? dm[ma].tonDinhMuc : 0, giaVon: dm[ma] ? dm[ma].giaVon : 0,
+        giaBan: dm[ma] ? dm[ma].giaBan : 0
       };
     }
     theoHang[ma].tongHao += num_(r.haoHut);
@@ -530,6 +532,7 @@ function qlKho_(nv, p) {
     danhMuc: readAll_(SHEETS.HANG).map(r => ({
       maHang: String(r.maHang).trim(), tenHang: String(r.tenHang || ''), donVi: String(r.donVi || ''),
       nhomHang: String(r.nhomHang || ''), tonDinhMuc: num_(r.tonDinhMuc), giaVon: num_(r.giaVon),
+      giaBan: num_(r.giaBan),
       trangThai: String(r.trangThai || 'HoatDong').trim()
     }))
   };
@@ -540,12 +543,14 @@ function qlLuuHang_(nv, p) {
   if (!/^[A-Z0-9_-]{2,20}$/.test(ma)) throw new Error('Mã hàng chỉ gồm chữ/số, 2–20 ký tự (vd: H013).');
   if (!String(p.tenHang || '').trim()) throw new Error('Chưa nhập tên hàng.');
 
+  const cu = findBy_(SHEETS.HANG, 'maHang', ma);
   const obj = {
     maHang: ma, tenHang: String(p.tenHang).trim(), donVi: String(p.donVi || '').trim(),
     nhomHang: String(p.nhomHang || 'Khác').trim(), tonDinhMuc: num_(p.tonDinhMuc),
-    giaVon: num_(p.giaVon), trangThai: String(p.trangThai || 'HoatDong').trim()
+    giaVon: num_(p.giaVon),
+    giaBan: (p.giaBan === '' || p.giaBan === undefined || p.giaBan === null) && cu ? num_(cu.giaBan) : num_(p.giaBan),
+    trangThai: String(p.trangThai || 'HoatDong').trim()
   };
-  const cu = findBy_(SHEETS.HANG, 'maHang', ma);
   if (cu) writeRow_(SHEETS.HANG, cu._row, obj); else appendObj_(SHEETS.HANG, obj);
   ghiNhatKy_(nv, 'LuuHang', ma);
   return { thongBao: 'Đã lưu mặt hàng ' + obj.tenHang + '.' };

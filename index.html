@@ -1102,7 +1102,8 @@ function moFormNhap(d, loai){
             return '<button type="button" class="nk-o" data-m="' + h(it.maHang) + '" data-t="' + h(boDau(it.tenHang)) + '"' + (het ? ' disabled style="opacity:.45"' : '') + '>' +
               '<span class="nk-tick">&#10003;</span>' +
               '<div class="nm">' + h(it.tenHang) + '</div>' +
-              '<div class="xs muted">' + h(it.donVi) + ' · tồn ' + it.tonTruoc + (xuat && it.choXuat ? ' (chờ xuất ' + it.choXuat + ')' : '') + '</div></button>';
+              '<div class="xs muted">' + h(it.donVi) + ' · tồn ' + it.tonTruoc + (xuat && it.choXuat ? ' (chờ xuất ' + it.choXuat + ')' : '') +
+              (!xuat && it.giaVon ? ' · vốn ' + tien(it.giaVon) : '') + '</div></button>';
           }).join('') + '</div>';
       }).join('') +
       '<div class="nk-day"><button class="btn block" id="nkTiep" type="button" disabled>Chọn mặt hàng để tiếp tục</button></div>' +
@@ -1158,13 +1159,15 @@ function moFormNhap(d, loai){
 
       $('#nkTiep').onclick = function(){
         $('#nkDs').innerHTML =
-          '<div class="kho-head c2"><div>Mặt hàng</div><div class="center">Số lượng</div></div>' +
+          '<div class="kho-head c2"><div>' + (xuat ? 'Mặt hàng' : 'Mặt hàng &amp; Giá nhập') + '</div><div class="center">Số lượng</div></div>' +
           chon.map(function(ma){
             var it = timHang(ma), cu = giaTri[ma] || {};
             var qua = !xuat && laHoaQua(it.nhomHang);
+            var valGia = cu.gia !== undefined ? cu.gia : (it.giaVon ? it.giaVon : '');
+            var phGia = qua ? 'Đơn giá hôm đó (đ) *' : (it.giaVon ? 'Giá nhập (gốc: ' + tien(it.giaVon) + ')' : 'Giá nhập (đ)');
             return '<div class="kho-item c2 nk-dong" data-m="' + h(ma) + '">' +
               '<div><div class="nm">' + h(it.tenHang) + '</div><div class="un">' + h(it.donVi) + (xuat ? ' · còn ' + conXuat(it) : '') + '</div>' +
-                (qua ? '<input class="inp nk-gia mt" inputmode="numeric" placeholder="Đơn giá hôm đó (đ)" value="' + h(cu.gia || '') + '" style="text-align:left;font-size:13px">' : '') +
+                (!xuat ? '<input class="inp nk-gia mt" inputmode="numeric" placeholder="' + phGia + '" value="' + h(valGia) + '" onfocus="this.select()" style="text-align:left;font-size:13px">' : '') +
               '</div>' +
               '<input class="inp nk-sl" inputmode="decimal" placeholder="0" value="' + h(cu.sl || '') + '"></div>';
           }).join('');
@@ -1244,11 +1247,13 @@ function theNhapXuat(p, choQL){
       h(ngayVN(p.ngay)) + ' · ' + h(p.maCa) + '</div>' + badge + '</div>' +
     '<div class="xs muted">' + h(p.hoTen) + ' · ' + h(p.thoiGian) + (p.tongTien ? ' · ' + tien(p.tongTien) : '') + '</div>' +
     '<div class="scrollx mt"><table class="tbl" style="table-layout:fixed;width:100%">' +
-    '<tr><th style="text-align:left">Hàng</th><th class="center" style="width:64px">' + (nhap ? 'Nhập' : 'Xuất') + '</th>' +
-    '<th class="center" style="width:56px">Trước</th><th class="center" style="width:56px">Sau</th></tr>' +
+    '<tr><th style="text-align:left">Hàng</th><th class="center" style="width:' + (nhap ? '54px' : '64px') + '">' + (nhap ? 'Nhập' : 'Xuất') + '</th>' +
+    (nhap ? '<th class="right" style="width:78px">Giá nhập</th>' : '') +
+    '<th class="center" style="width:50px">Trước</th><th class="center" style="width:50px">Sau</th></tr>' +
     p.items.map(function(i){
       return '<tr><td>' + h(i.tenHang) + ' <span class="xs muted">' + h(i.donVi) + '</span></td>' +
         '<td class="center"><b style="color:var(' + (nhap ? '--ok' : '--err') + ')">' + (nhap ? '+' : '−') + i.soLuong + '</b></td>' +
+        (nhap ? '<td class="right" style="font-size:12px">' + (i.donGia ? tien(i.donGia) : '—') + '</td>' : '') +
         '<td class="center">' + i.tonTruoc + '</td><td class="center">' + i.tonSau + '</td></tr>';
     }).join('') + '</table></div>' +
     (p.trangThaiDuyet === 'ChoDuyet' ? '<div class="xs muted mt">Tồn trước/sau là tạm tính, sẽ chốt lại lúc quản lý duyệt.</div>' : '') +
@@ -1848,7 +1853,7 @@ function moChiTietKho(x){
   p.innerHTML =
     '<button class="dp-close" onclick="dongChiTietKho()">&times;</button>' +
     '<div class="dp-title">' + h(x.tenHang) + '</div>' +
-    '<div class="dp-sub">' + h(x.donVi) + (x.tonDinhMuc ? ' \u00b7 \u0110M ' + x.tonDinhMuc : '') + '</div>' +
+    '<div class="dp-sub">' + h(x.donVi) + (x.tonDinhMuc ? ' \u00b7 \u0110M ' + x.tonDinhMuc : '') + (x.giaVon ? ' \u00b7 V\u1ed1n ' + tien(x.giaVon) : '') + (x.giaBan ? ' \u00b7 B\u00e1n ' + tien(x.giaBan) : '') + '</div>' +
     '<div class="grid2 mb">' +
       '<div class="stat' + (x.duoiDinhMuc ? ' err' : '') + '"><div class="v">' + x.tonHienTai + '</div><div class="l">Tồn hiện tại</div></div>' +
       '<div class="stat"><div class="v">' + x.soLanKiem + '</div><div class="l">Lần kiểm trong kỳ</div></div>' +
@@ -2072,7 +2077,7 @@ function tabKhoQL(n){
           '<div class="t1">' + h(x.tenHang) +
           (x.trangThai !== 'HoatDong' ? ' <span class="chip grey">ngừng</span>' : '') + '</div>' +
           '<div class="t2">' + h(x.donVi) + ' · ' + h(x.nhomHang) +
-          ' · ĐM ' + x.tonDinhMuc + ' · ' + tien(x.giaVon) + '</div></div>' +
+          ' · ĐM ' + x.tonDinhMuc + ' · ' + tien(x.giaVon) + (x.giaBan ? ' · Bán ' + tien(x.giaBan) : '') + '</div></div>' +
           '<button class="btn sm ghost" onclick="xoaHang(\'' + h(x.maHang) + '\',\'' + h(x.tenHang).replace(/'/g,"&#39;") + '\')">&times;</button></div>';
       }).join('') : trong('&#128230;', 'Chưa có mặt hàng nào.')) + '</div>';
   }
@@ -2120,7 +2125,7 @@ function duyetKiemKho(id, duyet){
 }
 
 function suaHang(x){
-  x = x || { maHang:'', tenHang:'', donVi:'', nhomHang:'Nguy\u00ean li\u1ec7u', tonDinhMuc:0, giaVon:0, trangThai:'HoatDong' };
+  x = x || { maHang:'', tenHang:'', donVi:'', nhomHang:'Nguy\u00ean li\u1ec7u', tonDinhMuc:0, giaVon:0, giaBan:0, trangThai:'HoatDong' };
   var isNew = !x.maHang;
   moSheet({
     title: isNew ? '\ud83d\udce6 Th\u00eam m\u1eb7t h\u00e0ng' : '\ud83d\udce6 ' + x.tenHang,
@@ -2131,6 +2136,7 @@ function suaHang(x){
         options:['Nguy\u00ean li\u1ec7u','V\u1eadt t\u01b0','H\u00e0ng b\u00e1n','Hoa quả','Kh\u00e1c'] },
       { k:'tonDinhMuc', label:'T\u1ed3n \u0111\u1ecbnh m\u1ee9c (c\u1ea3nh b\u00e1o khi th\u1ea5p h\u01a1n)', type:'number', value:x.tonDinhMuc },
       { k:'giaVon', label:'Gi\u00e1 v\u1ed1n / \u0111\u01a1n v\u1ecb', type:'number', value:x.giaVon },
+      { k:'giaBan', label:'Gi\u00e1 b\u00e1n', type:'number', value:x.giaBan },
       { k:'trangThai', label:'Tr\u1ea1ng th\u00e1i', type:'select', value:x.trangThai,
         options:[{ v:'HoatDong', t:'\u0110ang theo d\u00f5i' }, { v:'NgungTheoDoi', t:'Ng\u1eebng theo d\u00f5i' }] }
     ]) + '<button class="btn block" id="_hOk">L\u01b0u</button>',

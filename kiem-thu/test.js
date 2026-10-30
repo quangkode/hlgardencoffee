@@ -285,8 +285,14 @@ ok('quy đổi tiền hao = 5 x 180.000', h001.tienHao === 900000, h001.tienHao)
 ok('gộp thành 2 phiếu', khoQL.phieu.length === 2, khoQL.phieu.length);
 
 await must(tkQL, 'ql.luuHang', { maHang: 'H099', tenHang: 'Syrup vải', donVi: 'chai',
-                                 nhomHang: 'Nguyên liệu', tonDinhMuc: 3, giaVon: 90000 });
+                                 nhomHang: 'Nguyên liệu', tonDinhMuc: 3, giaVon: 90000, giaBan: 120000 });
 ok('thêm mặt hàng mới', docSheet('DanhMucHang').length === 13);
+ok('lưu đúng giá bán', Number(docSheet('DanhMucHang').find(x => x.maHang === 'H099')?.giaBan) === 120000);
+const dmKho = await must(tkNV, 'kho.danhMuc', {});
+ok('kho.danhMuc trả về giá bán', dmKho.find(x => x.maHang === 'H099')?.giaBan === 120000);
+await must(tkQL, 'ql.luuHang', { maHang: 'H099', tenHang: 'Syrup vải đỏ', donVi: 'chai',
+                                 nhomHang: 'Nguyên liệu', tonDinhMuc: 3, giaVon: 95000 });
+ok('sửa hàng giữ nguyên giá bán cũ nếu không truyền', Number(docSheet('DanhMucHang').find(x => x.maHang === 'H099')?.giaBan) === 120000);
 ok('mã hàng sai định dạng bị từ chối',
    (await api(tkQL, 'ql.luuHang', { maHang: 'x', tenHang: 'Test' })).ok === false);
 

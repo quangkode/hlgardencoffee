@@ -39,7 +39,7 @@ const HEADERS = {
     'anhVao', 'anhRa', 'ghiChu', 'nguoiSua', 'thoiGianSua'
   ],
   [SHEETS.HANG]: [
-    'maHang', 'tenHang', 'donVi', 'nhomHang', 'tonDinhMuc', 'giaVon', 'trangThai'
+    'maHang', 'tenHang', 'donVi', 'nhomHang', 'tonDinhMuc', 'giaVon', 'giaBan', 'trangThai'
   ],
   [SHEETS.KIEMKHO]: [
     'id', 'thoiGian', 'ngay', 'maCa', 'maNV', 'hoTen', 'maHang', 'tenHang', 'donVi',

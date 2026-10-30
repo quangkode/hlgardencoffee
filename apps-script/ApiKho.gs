@@ -13,7 +13,7 @@ function khoDanhMuc_() {
     .map(r => ({
       maHang: String(r.maHang).trim(), tenHang: String(r.tenHang || ''),
       donVi: String(r.donVi || ''), nhomHang: String(r.nhomHang || 'Khác'),
-      tonDinhMuc: num_(r.tonDinhMuc), giaVon: num_(r.giaVon)
+      tonDinhMuc: num_(r.tonDinhMuc), giaVon: num_(r.giaVon), giaBan: num_(r.giaBan)
     }));
 }
 

@@ -434,7 +434,7 @@ export function khoDanhMuc_() {
     .map(r => ({
       maHang: String(r.maHang).trim(), tenHang: String(r.tenHang || ''),
       donVi: String(r.donVi || ''), nhomHang: String(r.nhomHang || 'Khác'),
-      tonDinhMuc: num_(r.tonDinhMuc), giaVon: num_(r.giaVon)
+      tonDinhMuc: num_(r.tonDinhMuc), giaVon: num_(r.giaVon), giaBan: num_(r.giaBan)
     }));
 }
 
@@ -985,7 +985,7 @@ export function qlNhapKhoExcel_(nv, p) {
     hangMoi.push({
       maHang: ma, tenHang: tenDung, donVi: dvDung,
       nhomHang: 'Nhập từ Excel', tonDinhMuc: 0, giaVon: it.donGia || 0,
-      trangThai: 'HoatDong'
+      giaBan: 0, trangThai: 'HoatDong'
     });
   }));
 
@@ -1915,7 +1915,8 @@ export function qlKho_(nv, p) {
         maHang: ma, tenHang: String(r.tenHang || ''), donVi: String(r.donVi || ''),
         tongHao: 0, soLanKiem: 0, tonHienTai: ton[ma] ? ton[ma].thucTe : 0,
         nhomHang: dm[ma] ? dm[ma].nhomHang || 'Khác' : 'Khác',
-        tonDinhMuc: dm[ma] ? dm[ma].tonDinhMuc : 0, giaVon: dm[ma] ? dm[ma].giaVon : 0
+        tonDinhMuc: dm[ma] ? dm[ma].tonDinhMuc : 0, giaVon: dm[ma] ? dm[ma].giaVon : 0,
+        giaBan: dm[ma] ? dm[ma].giaBan : 0
       };
     }
     theoHang[ma].tongHao += num_(r.haoHut);
@@ -1973,6 +1974,7 @@ export function qlKho_(nv, p) {
     danhMuc: readAll_(SHEETS.HANG).map(r => ({
       maHang: String(r.maHang).trim(), tenHang: String(r.tenHang || ''), donVi: String(r.donVi || ''),
       nhomHang: String(r.nhomHang || ''), tonDinhMuc: num_(r.tonDinhMuc), giaVon: num_(r.giaVon),
+      giaBan: num_(r.giaBan),
       trangThai: String(r.trangThai || 'HoatDong').trim()
     }))
   };
@@ -1990,12 +1992,14 @@ export function qlLuuHang_(nv, p) {
     throw new Error('Mã hàng chỉ gồm chữ/số, 2–20 ký tự (vd: H013).');
   }
 
+  const cu = findBy_(SHEETS.HANG, 'maHang', ma);
   const obj = {
     maHang: ma, tenHang: String(p.tenHang).trim(), donVi: String(p.donVi || '').trim(),
     nhomHang: String(p.nhomHang || 'Khác').trim(), tonDinhMuc: num_(p.tonDinhMuc),
-    giaVon: num_(p.giaVon), trangThai: String(p.trangThai || 'HoatDong').trim()
+    giaVon: num_(p.giaVon),
+    giaBan: (p.giaBan === '' || p.giaBan === undefined || p.giaBan === null) && cu ? num_(cu.giaBan) : num_(p.giaBan),
+    trangThai: String(p.trangThai || 'HoatDong').trim()
   };
-  const cu = findBy_(SHEETS.HANG, 'maHang', ma);
   if (cu) writeRow_(SHEETS.HANG, cu._row, obj); else appendObj_(SHEETS.HANG, obj);
   ghiNhatKy_(nv, 'LuuHang', ma);
   return { thongBao: 'Đã lưu mặt hàng ' + obj.tenHang + '.' };
@@ -2030,7 +2034,7 @@ export function qlKhoiPhucHang_(nv, p) {
   if (!ds.length) throw new Error('Danh mục đã đủ món, không có gì để khôi phục.');
   withLock_(() => appendMany_(SHEETS.HANG, ds.map(x => ({
     maHang: x.maHang, tenHang: x.tenHang, donVi: x.donVi,
-    nhomHang: 'Nhập từ Excel', tonDinhMuc: 0, giaVon: 0, trangThai: 'HoatDong'
+    nhomHang: 'Nhập từ Excel', tonDinhMuc: 0, giaVon: 0, giaBan: 0, trangThai: 'HoatDong'
   }))));
   ghiNhatKy_(nv, 'KhoiPhucHang', ds.map(x => x.maHang).join(','));
   return { thongBao: 'Đã khôi phục ' + ds.length + ' mặt hàng: ' + ds.map(x => x.tenHang).join(', ') + '.' };

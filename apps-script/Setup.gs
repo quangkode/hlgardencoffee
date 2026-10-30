@@ -30,18 +30,18 @@ const DEFAULT_CA = [
 ];
 
 const DEFAULT_HANG = [
-  ['H001', 'Cà phê hạt',        'kg',   'Nguyên liệu', 5,  180000, 'HoatDong'],
-  ['H002', 'Sữa đặc',           'lon',  'Nguyên liệu', 10, 22000,  'HoatDong'],
-  ['H003', 'Sữa tươi',          'hộp',  'Nguyên liệu', 12, 32000,  'HoatDong'],
-  ['H004', 'Đường',             'kg',   'Nguyên liệu', 5,  20000,  'HoatDong'],
-  ['H005', 'Trà đen',           'kg',   'Nguyên liệu', 2,  150000, 'HoatDong'],
-  ['H006', 'Đá viên',           'bao',  'Nguyên liệu', 6,  15000,  'HoatDong'],
-  ['H007', 'Ly nhựa size M',    'cái',  'Vật tư',      200, 900,   'HoatDong'],
-  ['H008', 'Ly nhựa size L',    'cái',  'Vật tư',      200, 1200,  'HoatDong'],
-  ['H009', 'Nắp ly',            'cái',  'Vật tư',      300, 400,   'HoatDong'],
-  ['H010', 'Ống hút',           'cái',  'Vật tư',      300, 200,   'HoatDong'],
-  ['H011', 'Bánh ngọt',         'cái',  'Hàng bán',    15, 12000,  'HoatDong'],
-  ['H012', 'Nước suối',         'chai', 'Hàng bán',    24, 4000,   'HoatDong']
+  ['H001', 'Cà phê hạt',        'kg',   'Nguyên liệu', 5,  180000, 0, 'HoatDong'],
+  ['H002', 'Sữa đặc',           'lon',  'Nguyên liệu', 10, 22000,  0, 'HoatDong'],
+  ['H003', 'Sữa tươi',          'hộp',  'Nguyên liệu', 12, 32000,  0, 'HoatDong'],
+  ['H004', 'Đường',             'kg',   'Nguyên liệu', 5,  20000,  0, 'HoatDong'],
+  ['H005', 'Trà đen',           'kg',   'Nguyên liệu', 2,  150000, 0, 'HoatDong'],
+  ['H006', 'Đá viên',           'bao',  'Nguyên liệu', 6,  15000,  0, 'HoatDong'],
+  ['H007', 'Ly nhựa size M',    'cái',  'Vật tư',      200, 900,   0, 'HoatDong'],
+  ['H008', 'Ly nhựa size L',    'cái',  'Vật tư',      200, 1200,  0, 'HoatDong'],
+  ['H009', 'Nắp ly',            'cái',  'Vật tư',      300, 400,   0, 'HoatDong'],
+  ['H010', 'Ống hút',           'cái',  'Vật tư',      300, 200,   0, 'HoatDong'],
+  ['H011', 'Bánh ngọt',         'cái',  'Hàng bán',    15, 12000,  0, 'HoatDong'],
+  ['H012', 'Nước suối',         'chai', 'Hàng bán',    24, 4000,   0, 'HoatDong']
 ];
 
 /**
@@ -94,7 +94,7 @@ function khoiTaoHeThong() {
   if (readAll_(SHEETS.HANG).length === 0) {
     appendMany_(SHEETS.HANG, DEFAULT_HANG.map(r => ({
       maHang: r[0], tenHang: r[1], donVi: r[2], nhomHang: r[3],
-      tonDinhMuc: r[4], giaVon: r[5], trangThai: r[6]
+      tonDinhMuc: r[4], giaVon: r[5], giaBan: r[6], trangThai: r[7]
     })));
   }
 
