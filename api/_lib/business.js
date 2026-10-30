@@ -1894,6 +1894,25 @@ export function qlXoaThuongPhat_(nv, p) {
   return { thongBao: 'Đã xoá.' };
 }
 
+/** Danh sách nhân viên bị phạt trong tháng hiện tại / 30 ngày gần nhất để chạy chữ trên giao diện */
+export function dsPhatHienTai_() {
+  const thang = thangHienTai_();
+  const d30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+  return readAll_(SHEETS.THUONGPHAT)
+    .filter(r => String(r.loai).trim() === 'Phat' &&
+      (String(r.thang || '').slice(0, 7) === thang || String(r.thoiGian || '').slice(0, 10) >= d30))
+    .sort((a, b) => String(b.thoiGian || '').localeCompare(String(a.thoiGian || '')))
+    .map(r => ({
+      id: String(r.id),
+      maNV: String(r.maNV),
+      hoTen: String(r.hoTen || ''),
+      soTien: num_(r.soTien),
+      lyDo: String(r.lyDo || '').trim(),
+      thoiGian: String(r.thoiGian || ''),
+      thang: String(r.thang || '').slice(0, 7)
+    }));
+}
+
 /* ================= QUẢN LÝ: KHO ================= */
 
 export function qlKho_(nv, p) {

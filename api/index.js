@@ -44,6 +44,7 @@ const THAO_TAC = {
   'ca.huyBaoCa':   { sheets: [LICH],           fn: (nv, p) => B.caHuyBaoCa_(nv, p) },
 
   'luong.cuaToi':  { sheets: LUONG, fn: (nv, p) => B.luongCuaToi_(nv, p) },
+  'dsPhat':        { sheets: [TP],   fn: () => B.dsPhatHienTai_() },
 
   'kho.danhMuc':   { sheets: [HANG],                fn: () => B.khoDanhMuc_() },
   'kho.phieuMoi':  { sheets: [HANG, KHO, NX, CA, CC],   fn: nv => B.khoPhieuMoi_(nv) },

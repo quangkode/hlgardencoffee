@@ -222,6 +222,11 @@ await must(tkQL, 'ql.luuThuongPhat', { maNV: 'NV001', thang: '2026-08', loai: 'P
 L = (await must(tkQL, 'ql.bangLuong', { thang: '2026-08', maNV: 'NV001' })).danhSach[0];
 ok('cộng thưởng, trừ phạt đúng', L.thucNhan === 595000 + 200000 - 50000, L.thucNhan);
 
+const dsP = await must(tkNV, 'dsPhat', {});
+ok('nhân viên gọi được dsPhat', Array.isArray(dsP));
+ok('danh sách phạt có thông tin người bị phạt', dsP.some(x => x.maNV === 'NV001' && x.soTien === 50000 && x.lyDo === 'Làm vỡ ly'));
+ok('không lẫn thưởng vào danh sách phạt', dsP.every(x => x.soTien === 50000));
+
 const ml = await must(tkNV, 'luong.cuaToi', { thang: '2026-08' });
 ok('nhân viên xem được lương của chính mình', ml.luong.thucNhan === L.thucNhan);
 ok('nhân viên chỉ thấy dữ liệu của mình', ml.luong.maNV === 'NV001');

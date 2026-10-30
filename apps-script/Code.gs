@@ -56,6 +56,7 @@ const ACTION_NOI_BO = {
 
   /* --- lương --- */
   'luong.cuaToi':  (nv, p) => luongCuaToi_(nv, p),
+  'dsPhat':        ()      => dsPhatHienTai_(),
 
   /* --- kho --- */
   'kho.danhMuc':   ()      => khoDanhMuc_(),

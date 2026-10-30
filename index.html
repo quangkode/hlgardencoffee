@@ -51,8 +51,8 @@ input,select,textarea,button{font-family:inherit;font-size:16px}
 #app{min-height:100%;display:flex;flex-direction:column;max-width:900px;margin:0 auto;background:var(--bg)}
 @media(min-width:901px){ #app{box-shadow:0 0 40px rgba(0,0,0,.07);min-height:100vh} }
 
+#headerSticky{position:sticky;top:0;z-index:30}
 #topbar{
-  position:sticky;top:0;z-index:30;
   background:linear-gradient(135deg,var(--brand),var(--brand2));
   color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;
   padding-top:calc(12px + env(safe-area-inset-top,0px));
@@ -66,6 +66,31 @@ input,select,textarea,button{font-family:inherit;font-size:16px}
 #topbar .tb-right{margin-left:auto;display:flex;gap:8px;align-items:center}
 .tb-btn{background:rgba(255,255,255,.16);border:0;color:#fff;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer}
 .tb-btn:active{background:rgba(255,255,255,.3)}
+
+.marquee-phat{
+  background:#782218;color:#fff;font-size:12px;font-weight:500;
+  display:flex;align-items:center;height:28px;overflow:hidden;
+  border-bottom:1px solid rgba(0,0,0,.15);
+}
+.marquee-phat.hidden{display:none!important}
+.marquee-tag{
+  background:#c0442e;color:#fff;font-size:10px;font-weight:700;
+  text-transform:uppercase;padding:2px 7px;border-radius:4px;
+  margin:0 8px;flex-shrink:0;display:inline-flex;align-items:center;gap:3px;
+}
+.marquee-wrap{flex:1;overflow:hidden;white-space:nowrap;position:relative}
+.marquee-track{
+  display:inline-flex;white-space:nowrap;will-change:transform;
+  animation:marquee-scroll 24s linear infinite;
+}
+.marquee-track:hover{animation-play-state:paused}
+.marquee-item{display:inline-flex;align-items:center;padding:0 8px}
+.marquee-item b{color:#fed7aa;margin-right:4px}
+.marquee-sep{opacity:.5;margin:0 6px}
+@keyframes marquee-scroll{
+  0%{transform:translateX(0)}
+  100%{transform:translateX(-50%)}
+}
 
 #view{flex:1;padding:14px 14px calc(84px + var(--safe-b));min-height:0}
 
@@ -306,17 +331,20 @@ table.tbl.kk th:first-child,table.tbl.kk td:first-child{text-align:left;border-l
   </div>
 
   <div id="app" class="hidden">
-    <header id="topbar">
-      <div class="tb-avatar" id="tbAv">?</div>
-      <div class="grow">
-        <div class="tb-name" id="tbName">—</div>
-        <div class="tb-sub" id="tbSub">—</div>
-      </div>
-      <div class="tb-right">
-        <button class="tb-btn" id="tbReload" title="Tải lại">&#8635;</button>
-        <button class="tb-btn" id="tbLogout">Thoát</button>
-      </div>
-    </header>
+    <div id="headerSticky">
+      <header id="topbar">
+        <div class="tb-avatar" id="tbAv">?</div>
+        <div class="grow">
+          <div class="tb-name" id="tbName">—</div>
+          <div class="tb-sub" id="tbSub">—</div>
+        </div>
+        <div class="tb-right">
+          <button class="tb-btn" id="tbReload" title="Tải lại">&#8635;</button>
+          <button class="tb-btn" id="tbLogout">Thoát</button>
+        </div>
+      </header>
+      <div id="marqueePhat" class="marquee-phat hidden"></div>
+    </div>
     <main id="view"></main>
     <nav id="tabbar"></nav>
   </div>
@@ -593,6 +621,7 @@ function dangXuat(msg){
   try { localStorage.removeItem(KEY_TOKEN); } catch(e){}
   if (_pollTimer){ clearInterval(_pollTimer); _pollTimer = null; }
   hide('#modal'); $('#modal').innerHTML = '';
+  var bar = $('#marqueePhat'); if (bar) bar.classList.add('hidden');
   hide('#app'); show('#loginScreen'); hide('#splash');
   loiDangNhap(msg || '');
 }
@@ -666,18 +695,54 @@ function go(tab, tham){
       '<div>' + h(e.message) + '</div><button class="btn sm mt" onclick="go(S.tab)">Thử lại</button></div></div>';
   });
 }
-function lamMoi(){ go(S.tab); }
+function lamMoi(){ capNhatBangPhat(); go(S.tab); }
 function datPoll(fn, giay){
   if (_pollTimer) clearInterval(_pollTimer);
   _pollTimer = setInterval(fn, (giay || 25) * 1000);
 }
 
 /* ============ Khởi động ============ */
+function capNhatBangPhat(){
+  var bar = $('#marqueePhat');
+  if (!bar) return;
+  // Chỉ hiển thị ở giao diện nhân viên khi có người bị phạt
+  if (!S.me || S.me.chucVu === 'QuanLy'){
+    bar.classList.add('hidden');
+    return;
+  }
+  api('dsPhat', {}, { im: true }).then(function(ds){
+    if (!Array.isArray(ds) || !ds.length){
+      bar.classList.add('hidden');
+      return;
+    }
+    var htmlItem = function(x){
+      var lyDo = x.lyDo ? ' (' + h(x.lyDo) + ')' : '';
+      return '<span class="marquee-item">' +
+        '<b>' + h(x.hoTen) + '</b>' +
+        '<span>-' + tien(x.soTien) + lyDo + '</span>' +
+        '<span class="marquee-sep">&#9679;</span>' +
+        '</span>';
+    };
+    var itemsHtml = ds.map(htmlItem).join('');
+    var half = itemsHtml;
+    if (ds.length < 3) half += itemsHtml;
+    var trackHtml = half + half;
+
+    bar.innerHTML =
+      '<div class="marquee-tag">&#9888; PHẠT</div>' +
+      '<div class="marquee-wrap"><div class="marquee-track">' + trackHtml + '</div></div>';
+    bar.classList.remove('hidden');
+  }).catch(function(){
+    bar.classList.add('hidden');
+  });
+}
+
 function veTopbar(){
   var m = S.me || {};
   $('#tbAv').textContent = chuCai(m.hoTen);
   $('#tbName').textContent = m.hoTen || '';
   $('#tbSub').textContent = (m.chucVu === 'QuanLy' ? 'Quản lý' : 'Nhân viên') + ' • ' + (m.maNV || '');
+  capNhatBangPhat();
 }
 
 function vaoApp(){
