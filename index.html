@@ -1872,7 +1872,8 @@ function chotLuong(thang){
 VIEWS.q_kho = function(root, tham){
   var tu = tham.tu || congNgay(homNay(), -6);
   var den = tham.den || homNay();
-  return api('ql.kho', { tuNgay: tu, denNgay: den }).then(function(d){
+  if (tham.thang) S.khoThang = tham.thang;
+  return api('ql.kho', { tuNgay: tu, denNgay: den, thang: S.khoThang || homNay().slice(0, 7) }).then(function(d){
     S.cache.kho = d;
     root.innerHTML =
       '<div class="card tight"><div class="grid2">' +
@@ -2014,6 +2015,72 @@ function veDsPhieuKiem(){
   }).join('') : trong('&#128269;', 'Không có phiếu nào khớp bộ lọc.');
 }
 
+/* ---- Báo cáo tổng: hết / sắp hết, nhập–dùng theo tháng, món chưa có mức báo ---- */
+function soDV(n, dv){ return h(String(Math.round((Number(n) || 0) * 1000) / 1000)) + (dv ? ' <span class="xs muted">' + h(dv) + '</span>' : ''); }
+
+function theBaoHet(bc){
+  if (!bc) return '';
+  var ds = bc.canhBao || [];
+  var soHet = ds.filter(function(x){ return x.trangThai === 'Het'; }).length;
+  return '<div class="card"><div class="spread" style="margin-bottom:8px"><b style="font-size:13px">&#9888; Hết &amp; sắp hết</b>' +
+    '<span class="xs muted">' + soHet + ' hết · ' + (ds.length - soHet) + ' sắp hết</span></div>' +
+    (ds.length ? '<div class="scrollx"><table class="tbl kk"><tr><th>Món</th><th>Còn</th><th>Báo khi còn</th><th></th></tr>' +
+      ds.map(function(x){
+        return '<tr><td>' + h(x.tenHang) + '</td>' +
+          '<td style="color:var(--' + (x.trangThai === 'Het' ? 'err' : 'warn') + ');font-weight:700">' + soDV(x.tonHienTai, x.donVi) + '</td>' +
+          '<td>' + (x.mucBao > 0 ? soDV(x.mucBao) + (x.mucTheoTen ? ' <span class="xs muted">(mặc định)</span>' : '') : '<span class="xs muted">—</span>') + '</td>' +
+          '<td>' + (x.trangThai === 'Het' ? '<span class="chip err">Hết</span>' : '<span class="chip warn">Sắp hết</span>') +
+            (x.choNhap ? ' <span class="xs muted">chờ nhập ' + h(x.choNhap) + '</span>' : '') + '</td></tr>';
+      }).join('') + '</table></div>'
+    : '<div class="small muted">Chưa có món nào hết hay sắp hết.</div>') +
+    '<div class="xs muted mt">Còn bằng hoặc dưới mức báo là báo sắp hết, còn 0 là hết. Mức mặc định: dứa, cam, ổi còn 1; sữa đặc, sữa tươi, Rich còn 3; đậu đỏ, hạt sen còn 1. Món có định mức riêng trong Danh mục thì theo định mức đó.</div></div>';
+}
+
+function theBaoCaoThang(bc){
+  if (!bc) return '';
+  var ds = bc.ds || [];
+  return '<div class="card"><div class="spread" style="margin-bottom:8px"><b style="font-size:13px">&#128200; Nhập &amp; dùng nguyên liệu</b>' +
+      '<input class="inp" type="month" id="khoThang" value="' + h(bc.thang) + '" style="width:auto;padding:4px 8px"></div>' +
+    '<div class="grid2 mb">' +
+      '<div class="stat brand"><div class="v" style="font-size:16px">' + tien(bc.tongTienNhap) + '</div><div class="l">Tiền nhập ' + h(thangVN(bc.thang).toLowerCase()) + '</div></div>' +
+      '<div class="stat warn"><div class="v" style="font-size:16px">' + tien(bc.tongTienDung) + '</div><div class="l">Tiền nguyên liệu đã dùng</div></div>' +
+    '</div>' +
+    (ds.length ? '<div class="scrollx"><table class="tbl kk"><tr><th>Món</th><th>Đầu tháng</th><th>Nhập</th><th>Tiền nhập</th><th>Dùng</th><th>Tiền dùng</th><th>Còn</th></tr>' +
+      ds.map(function(x){
+        return '<tr><td>' + h(x.tenHang) + ' <span class="xs muted">' + h(x.donVi) + '</span></td>' +
+          '<td>' + soDV(x.tonDau) + '</td><td>' + (x.slNhap ? soDV(x.slNhap) : '<span class="muted">0</span>') + '</td>' +
+          '<td>' + (x.tienNhap ? tien(x.tienNhap) : '<span class="muted">—</span>') + '</td>' +
+          '<td' + (x.slDung < 0 ? ' style="color:var(--err)" title="Tồn tăng mà không có phiếu nhập"' : '') + '>' + soDV(x.slDung) + '</td>' +
+          '<td>' + tien(x.tienDung) + '</td><td>' + soDV(x.tonCuoi) + '</td></tr>';
+      }).join('') +
+      '<tr style="font-weight:700"><td>Tổng</td><td></td><td></td><td>' + tien(bc.tongTienNhap) + '</td><td></td><td>' + tien(bc.tongTienDung) + '</td><td></td></tr>' +
+      '</table></div>'
+    : '<div class="small muted">Tháng này chưa có nhập hay dùng nguyên liệu nào.</div>') +
+    '<div class="xs muted mt">Nhập: phiếu nhập kho đã duyệt trong tháng. Dùng = đầu tháng + nhập − còn cuối tháng (gồm xuất kho và hao hụt). Tiền dùng tính theo giá nhập bình quân trong tháng, chưa nhập thì theo giá vốn. Số dùng âm (màu đỏ) là tồn tăng mà thiếu phiếu nhập.</div></div>';
+}
+
+function theChuaCoMuc(bc){
+  var ds = (bc && bc.chuaCoMuc) || [];
+  if (!ds.length) return '';
+  return '<div class="card"><div class="spread" style="margin-bottom:8px"><b style="font-size:13px">&#9998; Món chưa có mức báo (' + ds.length + ')</b></div>' +
+    '<div class="xs muted mb">Điền "còn bao nhiêu thì báo sắp hết" cho từng món, món nào chưa muốn đặt thì để trống.</div>' +
+    '<div class="scrollx"><table class="tbl kk"><tr><th>Món</th><th>Nhóm</th><th>Còn</th><th>Báo khi còn</th></tr>' +
+      ds.map(function(x){
+        return '<tr><td>' + h(x.tenHang) + '</td><td class="xs muted">' + h(x.nhomHang) + '</td><td>' + soDV(x.tonHienTai, x.donVi) + '</td>' +
+          '<td><input class="inp" type="number" min="0" step="any" inputmode="decimal" data-muc="' + h(x.maHang) + '" style="width:80px;padding:4px 8px"> ' +
+          '<span class="xs muted">' + h(x.donVi) + '</span></td></tr>';
+      }).join('') + '</table></div>' +
+    '<button class="btn block mt" id="btnLuuMuc">Lưu mức báo</button></div>';
+}
+
+function luuMucBao(){
+  var items = $$('[data-muc]').filter(function(e){ return e.value !== ''; })
+    .map(function(e){ return { maHang: e.getAttribute('data-muc'), muc: Number(e.value) }; });
+  if (!items.length) { toast('Chưa điền mức báo cho món nào.', 'err'); return; }
+  api('ql.luuMucBao', { items: items }).then(function(r){ toast(r.thongBao, 'ok'); lamMoi(); })
+    .catch(function(e){ toast(e.message, 'err'); });
+}
+
 function tabKhoQL(n){
   ['#kT1','#kT2','#kT3','#kT4','#kT5'].forEach(function(s, i){ $(s).className = (i + 1 === n) ? 'on' : ''; });
   var d = S.cache.kho, b = $('#kBody');
@@ -2033,6 +2100,9 @@ function tabKhoQL(n){
         '<div class="kpi-card c4"><div class="kpi-ic">&#128203;</div><div class="kpi-v anim-v">' + (soChoDuyet + soChoNX + (d.phieuDemChoDuyet || []).length) + '</div><div class="kpi-l">Chờ duyệt</div></div>' +
       '</div>' +
       '<div id="khoCho"></div>' +
+      theBaoHet(d.baoCaoTon) +
+      theBaoCaoThang(d.baoCaoThang) +
+      theChuaCoMuc(d.baoCaoTon) +
 
       (dsTon.length ? '<div class="card"><div class="spread" style="margin-bottom:8px"><b style="font-size:13px">Tồn kho hiện tại</b>' +
         '<span class="xs muted">Bấm vào món để xem chi tiết</span></div>' +
@@ -2076,6 +2146,11 @@ function tabKhoQL(n){
       $('#khoCho').innerHTML += '<div class="sec-title">Kiểm kho chờ duyệt <span class="chip warn">' + demCho.length + '</span></div>' +
         demCho.map(function(p){ return theDemKho(p, true); }).join('');
     }
+
+    if ($('#khoThang')) $('#khoThang').onchange = function(){
+      if (this.value) go('q_kho', { tu: d.tu, den: d.den, thang: this.value });
+    };
+    if ($('#btnLuuMuc')) $('#btnLuuMuc').onclick = luuMucBao;
 
     if ($('#tkList')) {
       $('#tkQ').oninput = function(){ _locTK.q = this.value; veDsTonKho(); };
@@ -2199,7 +2274,7 @@ function suaHang(x){
       { k:'donVi', label:'\u0110\u01a1n v\u1ecb t\u00ednh', type:'text', value:x.donVi, ph:'kg / lon / c\u00e1i\u2026' },
       { k:'nhomHang', label:'Nh\u00f3m', type:'select', value:x.nhomHang,
         options:['Nguy\u00ean li\u1ec7u','V\u1eadt t\u01b0','H\u00e0ng b\u00e1n','Hoa quả','Kh\u00e1c'] },
-      { k:'tonDinhMuc', label:'T\u1ed3n \u0111\u1ecbnh m\u1ee9c (c\u1ea3nh b\u00e1o khi th\u1ea5p h\u01a1n)', type:'number', value:x.tonDinhMuc },
+      { k:'tonDinhMuc', label:'Còn bao nhiêu thì báo sắp hết (0 = theo mặc định)', type:'number', value:x.tonDinhMuc },
       { k:'giaVon', label:'Gi\u00e1 v\u1ed1n / \u0111\u01a1n v\u1ecb', type:'number', value:x.giaVon },
       { k:'giaBan', label:'Gi\u00e1 b\u00e1n', type:'number', value:x.giaBan },
       { k:'trangThai', label:'Tr\u1ea1ng th\u00e1i', type:'select', value:x.trangThai,

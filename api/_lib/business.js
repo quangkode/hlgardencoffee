@@ -441,6 +441,39 @@ export function khoDanhMuc_() {
 const lam3_ = n => Math.round(n * 1000) / 1000;
 
 /**
+ * Mức báo "sắp hết" mặc định theo tên món, dùng khi món chưa đặt tồn định mức
+ * riêng trong danh mục (tonDinhMuc = 0). Đặt định mức riêng thì luôn ưu tiên.
+ * So khớp theo từ, có dấu (để "dứa" không nhầm với "dừa").
+ */
+const MUC_BAO_MAC_DINH_ = [
+  { tu: ['dứa', 'cam', 'ổi'], muc: 1 },                    // hoa quả: còn 1 kg
+  { tu: ['sữa đặc', 'sữa tươi', 'rich', "rich's", 'richs'], muc: 3 },   // còn 3 hộp
+  { tu: ['đậu đỏ', 'hạt sen'], muc: 1 }                     // đồ hộp: còn 1 hộp
+];
+function coTu_(ten, tu) {
+  const i = ten.indexOf(tu);
+  if (i < 0) return false;
+  const truoc = i === 0 ? ' ' : ten[i - 1], sau = ten[i + tu.length] || ' ';
+  const laChu = c => /[\p{L}\p{N}]/u.test(c);
+  return !laChu(truoc) && !laChu(sau);
+}
+export function mucBaoMacDinh_(tenHang) {
+  const ten = String(tenHang || '').normalize('NFC').toLowerCase();
+  const r = MUC_BAO_MAC_DINH_.find(x => x.tu.some(t => coTu_(ten, t)));
+  return r ? r.muc : 0;
+}
+/** Mức báo sắp hết của một món: định mức riêng nếu có, không thì mức mặc định theo tên. */
+export function mucBao_(h) {
+  return num_(h.tonDinhMuc) > 0 ? num_(h.tonDinhMuc) : mucBaoMacDinh_(h.tenHang);
+}
+/** 'Het' | 'SapHet' | '' — còn đúng bằng mức báo là đã báo sắp hết. */
+export function trangThaiTon_(ton, muc) {
+  if (ton <= 0) return 'Het';
+  if (muc > 0 && ton <= muc) return 'SapHet';
+  return '';
+}
+
+/**
  * Tồn hiện tại của mỗi mặt hàng = số đếm của lần KIỂM KHO đã duyệt gần nhất
  * + nhập kho đã duyệt − xuất kho đã duyệt diễn ra SAU lần kiểm đó.
  * Chỉ phiếu đã được quản lý duyệt mới làm thay đổi tồn; phiếu nhập/xuất đang
@@ -547,8 +580,9 @@ export function khoGui_(nv, p) {
     const nhap = num_(it.nhapThem);
     const thucTe = num_(it.thucTe);
     const hao = Math.round((tonTruoc + nhap - thucTe) * 1000) / 1000;
-    const duoi = h.tonDinhMuc > 0 && thucTe < h.tonDinhMuc;
-    if (duoi) canhBao.push(h.tenHang + ' còn ' + thucTe + ' ' + h.donVi + ' (định mức ' + h.tonDinhMuc + ')');
+    const muc = mucBao_(h);
+    const duoi = muc > 0 && thucTe <= muc;
+    if (duoi) canhBao.push(h.tenHang + ' còn ' + thucTe + ' ' + h.donVi + ' (báo sắp hết khi còn ' + muc + ')');
 
     rows.push({
       id, thoiGian: stamp, ngay, maCa,
@@ -1338,10 +1372,11 @@ export function qlTongQuan_(nv, p) {
   const ton = tonGanNhat_();
   const cbKho = [];
   khoDanhMuc_().forEach(h => {
-    if (h.tonDinhMuc <= 0) return;
+    const muc = mucBao_(h);
+    if (muc <= 0) return;
     const t = ton[h.maHang];
-    if (t && t.thucTe < h.tonDinhMuc) {
-      cbKho.push({ tenHang: h.tenHang, con: t.thucTe, donVi: h.donVi, dinhMuc: h.tonDinhMuc });
+    if (t && t.thucTe <= muc) {
+      cbKho.push({ tenHang: h.tenHang, con: t.thucTe, donVi: h.donVi, dinhMuc: muc });
     }
   });
 
@@ -1945,7 +1980,8 @@ export function qlKho_(nv, p) {
   const thongKe = Object.values(theoHang).map(x => {
     x.tongHao = Math.round(x.tongHao * 1000) / 1000;
     x.tienHao = Math.round(x.tongHao * x.giaVon);
-    x.duoiDinhMuc = x.tonDinhMuc > 0 && x.tonHienTai < x.tonDinhMuc;
+    x.mucBao = mucBao_(x);
+    x.duoiDinhMuc = !!trangThaiTon_(x.tonHienTai, x.mucBao);
     return x;
   }).sort((a, b) => b.tienHao - a.tienHao);
 
@@ -1974,12 +2010,17 @@ export function qlKho_(nv, p) {
     tatCaKho.filter(r => String(r.trangThaiDuyet || '').trim() === 'ChoDuyet')
   );
 
+  const baoCaoTon = baoCaoTon_(ton);
+  const baoCaoThang = baoCaoThangKho_(p.thang);
+
   // Đếm thống kê tổng
-  const soMHDuoiDM = thongKe.filter(x => x.duoiDinhMuc).length;
+  const soMHDuoiDM = baoCaoTon.canhBao.length;
   const soMHKiem = thongKe.length;
 
   return {
     tu, den,
+    baoCaoTon,
+    baoCaoThang,
     phieu: gomPhieuKho_(rows).slice(0, 300),
     thongKe,
     nhomChart,
@@ -1997,6 +2038,117 @@ export function qlKho_(nv, p) {
       trangThai: String(r.trangThai || 'HoatDong').trim()
     }))
   };
+}
+
+/**
+ * Báo cáo tồn của TẤT CẢ món đang dùng: món hết / sắp hết (theo mức báo) và các
+ * món chưa có mức báo nào để quản lý đặt.
+ */
+export function baoCaoTon_(ton) {
+  ton = ton || tonGanNhat_();
+  const ds = khoDanhMuc_().map(h => {
+    const t = ton[h.maHang];
+    const tonHienTai = t ? t.thucTe : 0;
+    const muc = mucBao_(h);
+    return {
+      maHang: h.maHang, tenHang: h.tenHang, donVi: h.donVi, nhomHang: h.nhomHang,
+      tonHienTai, choNhap: t ? t.choNhap : 0,
+      tonDinhMuc: h.tonDinhMuc, mucBao: muc,
+      mucTheoTen: !(h.tonDinhMuc > 0) && muc > 0,
+      trangThai: trangThaiTon_(tonHienTai, muc)
+    };
+  });
+  const theoTen = (a, b) => a.tenHang.localeCompare(b.tenHang, 'vi');
+  return {
+    canhBao: ds.filter(x => x.trangThai)
+      .sort((a, b) => (a.trangThai === 'Het' ? 0 : 1) - (b.trangThai === 'Het' ? 0 : 1) || theoTen(a, b)),
+    chuaCoMuc: ds.filter(x => !(x.mucBao > 0)).sort(theoTen),
+    tongSo: ds.length
+  };
+}
+
+/**
+ * Nhập và dùng nguyên liệu trong một tháng, theo từng món:
+ *  - Nhập = phiếu nhập kho ĐÃ DUYỆT trong tháng (tiền theo thành tiền của phiếu)
+ *           + số "nhập thêm" ghi trên phiếu kiểm kho (tiền theo giá vốn).
+ *  - Dùng = tồn đầu tháng + nhập − tồn cuối tháng (gồm cả xuất kho và hao hụt).
+ *    Tiền dùng tính theo giá nhập bình quân trong tháng, chưa có thì theo giá vốn.
+ */
+export function baoCaoThangKho_(thang) {
+  const k = khoangThang_(thang || thangHienTai_());
+  const dauThang = tonGanNhat_(k.tu + ' 00:00:00');
+  const cuoiThang = tonGanNhat_(k.den + ' 24:00:00');   // sau mọi giờ của ngày cuối tháng
+
+  const dm = {};
+  readAll_(SHEETS.HANG).forEach(r => {
+    const ma = String(r.maHang).trim();
+    dm[ma] = { tenHang: String(r.tenHang || ''), donVi: String(r.donVi || ''),
+               nhomHang: String(r.nhomHang || 'Khác'), giaVon: num_(r.giaVon),
+               dangDung: String(r.trangThai || 'HoatDong').trim() === 'HoatDong' };
+  });
+  const map = {};
+  const lay = (ma, r) => map[ma] || (map[ma] = {
+    maHang: ma, tenHang: dm[ma] ? dm[ma].tenHang : String((r && r.tenHang) || ma),
+    donVi: dm[ma] ? dm[ma].donVi : String((r && r.donVi) || ''),
+    nhomHang: dm[ma] ? dm[ma].nhomHang : 'Khác', giaVon: dm[ma] ? dm[ma].giaVon : 0,
+    slNhap: 0, tienNhap: 0
+  });
+
+  readAll_(SHEETS.NHAPXUAT).forEach(r => {
+    if (String(r.loai).trim() !== 'Nhap' || String(r.trangThaiDuyet).trim() !== 'DaDuyet') return;
+    if (!trongKhoang_(r.ngay, k.tu, k.den)) return;
+    const x = lay(String(r.maHang).trim(), r);
+    x.slNhap = lam3_(x.slNhap + num_(r.soLuong));
+    x.tienNhap += num_(r.thanhTien);
+  });
+  readAll_(SHEETS.KIEMKHO).forEach(r => {
+    const tt = String(r.trangThaiDuyet || '').trim();
+    if ((tt && tt !== 'DaDuyet') || !num_(r.nhapThem) || !trongKhoang_(r.ngay, k.tu, k.den)) return;
+    const x = lay(String(r.maHang).trim(), r);
+    x.slNhap = lam3_(x.slNhap + num_(r.nhapThem));
+    x.tienNhap += Math.round(num_(r.nhapThem) * x.giaVon);
+  });
+
+  // Món có tồn đầu/cuối tháng cũng phải có mặt để tính lượng dùng
+  Object.keys(dauThang).concat(Object.keys(cuoiThang)).forEach(ma => { if (dm[ma]) lay(ma); });
+
+  const ds = Object.values(map).map(x => {
+    const dau = dauThang[x.maHang] ? dauThang[x.maHang].thucTe : 0;
+    const cuoi = cuoiThang[x.maHang] ? cuoiThang[x.maHang].thucTe : 0;
+    const dung = lam3_(dau + x.slNhap - cuoi);
+    const donGia = x.slNhap > 0 && x.tienNhap > 0 ? x.tienNhap / x.slNhap : x.giaVon;
+    return Object.assign(x, {
+      tonDau: dau, tonCuoi: cuoi, slDung: dung,
+      donGiaDung: Math.round(donGia), tienDung: Math.round(dung * donGia)
+    });
+  }).filter(x => x.slNhap || x.slDung)
+    .sort((a, b) => b.tienDung - a.tienDung || b.tienNhap - a.tienNhap || a.tenHang.localeCompare(b.tenHang, 'vi'));
+
+  return {
+    thang: k.thang, tu: k.tu, den: k.den,
+    tongTienNhap: ds.reduce((s, x) => s + x.tienNhap, 0),
+    tongTienDung: ds.reduce((s, x) => s + x.tienDung, 0),
+    ds
+  };
+}
+
+/** Quản lý đặt nhanh mức báo sắp hết (tonDinhMuc) cho nhiều món một lúc. */
+export function qlLuuMucBao_(nv, p) {
+  const items = Array.isArray(p.items) ? p.items : [];
+  const hang = {};
+  readAll_(SHEETS.HANG).forEach(r => { hang[String(r.maHang).trim()] = r; });
+  const sua = [];
+  items.forEach(it => {
+    const r = hang[String(it.maHang || '').trim()];
+    if (!r || it.muc === '' || it.muc === null || it.muc === undefined) return;
+    const muc = Math.abs(num_(it.muc));
+    if (num_(r.tonDinhMuc) === muc) return;
+    sua.push({ r, muc });
+  });
+  if (!sua.length) throw new Error('Chưa điền mức báo cho món nào.');
+  withLock_(() => sua.forEach(({ r, muc }) => patchRow_(SHEETS.HANG, r._row, { tonDinhMuc: muc })));
+  ghiNhatKy_(nv, 'LuuMucBao', sua.map(x => String(x.r.maHang) + '=' + x.muc).join(', '));
+  return { thongBao: 'Đã lưu mức báo cho ' + sua.length + ' món.' };
 }
 
 export function qlLuuHang_(nv, p) {

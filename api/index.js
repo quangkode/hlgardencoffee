@@ -93,6 +93,7 @@ const THAO_TAC = {
   'ql.duyetNhapXuat': { ql: true, sheets: [KHO, NX], fn: (nv, p) => B.qlDuyetNhapXuat_(nv, p) },
   'ql.dsPhieuChoDuyet': { ql: true, sheets: [KHO], fn: () => B.qlDsPhieuChoDuyet_() },
   'ql.luuHang':  { ql: true, sheets: [HANG],      fn: (nv, p) => B.qlLuuHang_(nv, p) },
+  'ql.luuMucBao': { ql: true, sheets: [HANG],     fn: (nv, p) => B.qlLuuMucBao_(nv, p) },
   'ql.xoaHang':  { ql: true, sheets: [HANG, KHO], fn: (nv, p) => B.qlXoaHang_(nv, p) },
   'ql.khoiPhucHang': { ql: true, sheets: [HANG, KHO, NX], fn: (nv, p) => B.qlKhoiPhucHang_(nv, p) },
   'ql.giaoCa':   { ql: true, sheets: [GC],        fn: (nv, p) => B.qlGiaoCa_(nv, p) },

@@ -775,6 +775,43 @@ ok('tồn trước/sau của phiếu 20/9 là tồn tại ngày 20/9 (0 -> 3)', 
 const kho21 = await must(tkQL, 'ql.kho', { tuNgay: '2026-09-25', denNgay: '2026-09-25' });
 ok('báo cáo khoảng 25/9 chỉ tính phiếu nhập ngày 25/9', kho21.phieuNX.length === 1 && kho21.phieuNX[0].id === p25.maPhieu, kho21.phieuNX.map(p => p.ngay));
 
+/* ============ 22. Báo cáo tổng kho: hết / sắp hết, nhập–dùng theo tháng ============ */
+nhom('22. Báo cáo hết / sắp hết và nhập–dùng theo tháng');
+datGio('2026-10-02T02:00:00Z');
+for (const [ten, dv, nhomH] of [['Dứa', 'kg', 'Hoa quả'], ['Dừa', 'quả', 'Hoa quả'], ['Hạt sen', 'lon', 'Đồ hộp'], ['Sữa tươi Vinamilk', 'hộp', 'Nguyên liệu']]) {
+  await must(tkQL, 'ql.luuHang', { tenHang: ten, donVi: dv, nhomHang: nhomH, tonDinhMuc: 0, giaVon: 20000 });
+}
+const maCua = ten => docSheet('DanhMucHang').find(x => x.tenHang === ten).maHang;
+const pDua = await must(tkNV, 'kho.nhapXuat', { loai: 'Nhap', items: [{ maHang: maCua('Dứa'), soLuong: 3, donGia: 30000 }] });
+await must(tkQL, 'ql.duyetNhapXuat', { id: pDua.maPhieu, duyet: true });
+const pSua = await must(tkNV, 'kho.nhapXuat', { loai: 'Nhap', items: [{ maHang: maCua('Sữa tươi Vinamilk'), soLuong: 3, donGia: 25000 }] });
+datGio('2026-10-05T10:00:00Z');
+const kkDua = await must(tkNV, 'kho.gui', { maCa: 'CA1', items: [{ maHang: maCua('Dứa'), nhapThem: 0, thucTe: 1 }] });
+await must(tkQL, 'ql.duyetKiemKho', { id: kkDua.maPhieu, duyet: true });
+
+let bc22 = await must(tkQL, 'ql.kho', { thang: '2026-10' });
+const cb = ten => bc22.baoCaoTon.canhBao.find(x => x.tenHang === ten);
+ok('dứa còn 1 kg -> sắp hết (mức mặc định 1)', cb('Dứa')?.trangThai === 'SapHet' && cb('Dứa').mucBao === 1 && cb('Dứa').mucTheoTen, cb('Dứa'));
+ok('hạt sen còn 0 -> hết', cb('Hạt sen')?.trangThai === 'Het', cb('Hạt sen'));
+ok('sữa tươi: mức mặc định 3 hộp', bc22.baoCaoTon.canhBao.concat(bc22.baoCaoTon.chuaCoMuc)
+   .find(x => x.tenHang === 'Sữa tươi Vinamilk')?.mucBao === 3);
+ok('"dừa" không bị nhầm với "dứa" -> nằm trong danh sách chưa có mức', bc22.baoCaoTon.chuaCoMuc.some(x => x.tenHang === 'Dừa'));
+ok('món có định mức riêng giữ định mức riêng (Sữa đặc = 10)',
+   !bc22.baoCaoTon.chuaCoMuc.some(x => x.maHang === 'H002'));
+const thDua = bc22.baoCaoThang.ds.find(x => x.tenHang === 'Dứa');
+ok('tháng 10: dứa nhập 3 kg = 90.000đ', thDua?.slNhap === 3 && thDua.tienNhap === 90000, thDua);
+ok('tháng 10: dứa dùng 3 − 1 = 2 kg = 60.000đ', thDua.slDung === 2 && thDua.tienDung === 60000 && thDua.tonCuoi === 1, thDua);
+ok('phiếu nhập chưa duyệt không tính tiền nhập', !bc22.baoCaoThang.ds.some(x => x.tenHang === 'Sữa tươi Vinamilk'));
+ok('tổng tiền nhập tháng 10 = 90.000đ', bc22.baoCaoThang.tongTienNhap === 90000, bc22.baoCaoThang.tongTienNhap);
+await must(tkQL, 'ql.duyetNhapXuat', { id: pSua.maPhieu, duyet: true });
+ok('tháng 9 không dính số tháng 10', !(await must(tkQL, 'ql.kho', { thang: '2026-09' })).baoCaoThang.ds.some(x => x.tenHang === 'Dứa'));
+
+ok('nhân viên không đặt được mức báo', (await api(tkNV, 'ql.luuMucBao', { items: [{ maHang: maCua('Dừa'), muc: 2 }] })).ok === false);
+await must(tkQL, 'ql.luuMucBao', { items: [{ maHang: maCua('Dừa'), muc: 2 }] });
+bc22 = await must(tkQL, 'ql.kho', {});
+ok('đặt mức cho dừa -> không còn trong danh sách chưa có mức', !bc22.baoCaoTon.chuaCoMuc.some(x => x.tenHang === 'Dừa'));
+ok('dừa còn 0 -> báo hết với mức 2', cb('Dừa')?.trangThai === 'Het' && cb('Dừa').mucBao === 2, cb('Dừa'));
+
 console.log('\n───────────────');
 console.log(dat + ' đạt / ' + hong + ' lỗi');
 process.exit(hong ? 1 : 0);
